@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>GTO Poker Advisor</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -10,81 +10,191 @@
     <div id="app">
         <!-- Header -->
         <header class="header">
-            <h1>GTO Advisor</h1>
-            <div class="hand-counter">
-                Раздача: <span id="handNumber">1</span>
-                <button id="newHandBtn" class="btn btn-new-hand">Новая раздача</button>
+            <div class="header-left">
+                <h1>♠ GTO Advisor</h1>
+                <span class="hand-num">Раздача #<span id="handNumber">1</span></span>
+            </div>
+            <div class="header-right">
+                <button class="btn btn-help" id="toggleCheatSheet" title="Комбинации покера">?</button>
+                <button class="btn btn-new-hand" id="newHandBtn">↻ Новая раздача</button>
             </div>
         </header>
 
-        <!-- Position Bar -->
-        <section class="position-bar">
-            <div class="position-seats" id="positionSeats"></div>
-        </section>
+        <!-- Street Progress -->
+        <div class="street-progress">
+            <div class="street-step active" data-street="preflop">
+                <div class="street-dot"></div>
+                <span>Префлоп</span>
+            </div>
+            <div class="street-line"></div>
+            <div class="street-step" data-street="flop">
+                <div class="street-dot"></div>
+                <span>Флоп</span>
+            </div>
+            <div class="street-line"></div>
+            <div class="street-step" data-street="turn">
+                <div class="street-dot"></div>
+                <span>Тёрн</span>
+            </div>
+            <div class="street-line"></div>
+            <div class="street-step" data-street="river">
+                <div class="street-dot"></div>
+                <span>Ривер</span>
+            </div>
+        </div>
 
-        <!-- Main Layout -->
-        <div class="main-layout">
-            <!-- Left: Input Panel -->
-            <div class="input-panel">
-                <!-- My Cards -->
-                <div class="section">
-                    <h3>Мои карты</h3>
-                    <div class="my-cards">
-                        <div class="card-slot" id="myCard1" data-slot="myCard1">?</div>
-                        <div class="card-slot" id="myCard2" data-slot="myCard2">?</div>
+        <!-- Position Visual Table -->
+        <div class="table-section">
+            <div class="poker-table">
+                <div class="table-felt">
+                    <div class="table-label">СТОЛ</div>
+                    <div class="table-info" id="tableInfo">Выбери свою позицию</div>
+                </div>
+                <div class="seats-ring" id="seatsRing"></div>
+            </div>
+            <div class="position-hint" id="positionHint">
+                Нажми на позицию чтобы выбрать где ты сидишь
+            </div>
+        </div>
+
+        <!-- Main Area -->
+        <div class="main-area">
+            <!-- Cards Section -->
+            <div class="cards-section">
+                <div class="cards-group">
+                    <div class="cards-label">Твои карты</div>
+                    <div class="cards-row">
+                        <div class="card-slot" id="myCard1" data-slot="myCard1">
+                            <span class="card-placeholder">+</span>
+                        </div>
+                        <div class="card-slot" id="myCard2" data-slot="myCard2">
+                            <span class="card-placeholder">+</span>
+                        </div>
                     </div>
                 </div>
-
-                <!-- Board Cards -->
-                <div class="section">
-                    <h3>Борд</h3>
-                    <div class="board-cards">
-                        <div class="card-slot board" id="flop1" data-slot="flop1">?</div>
-                        <div class="card-slot board" id="flop2" data-slot="flop2">?</div>
-                        <div class="card-slot board" id="flop3" data-slot="flop3">?</div>
-                        <div class="card-slot board turn-card" id="turn" data-slot="turn">?</div>
-                        <div class="card-slot board river-card" id="river" data-slot="river">?</div>
+                <div class="cards-group">
+                    <div class="cards-label">Борд (карты на столе)</div>
+                    <div class="cards-row">
+                        <div class="card-slot board-slot" id="flop1" data-slot="flop1"><span class="card-placeholder">+</span></div>
+                        <div class="card-slot board-slot" id="flop2" data-slot="flop2"><span class="card-placeholder">+</span></div>
+                        <div class="card-slot board-slot" id="flop3" data-slot="flop3"><span class="card-placeholder">+</span></div>
+                        <div class="card-slot board-slot turn-slot" id="turn" data-slot="turn"><span class="card-placeholder">+</span></div>
+                        <div class="card-slot board-slot river-slot" id="river" data-slot="river"><span class="card-placeholder">+</span></div>
+                    </div>
+                    <div class="board-labels">
+                        <span class="bl-flop">← Флоп →</span>
+                        <span class="bl-turn">Тёрн</span>
+                        <span class="bl-river">Ривер</span>
                     </div>
                 </div>
+            </div>
 
-                <!-- Players -->
-                <div class="section">
-                    <h3>Игроки в раздаче: <span id="playerCount">8</span></h3>
-                    <input type="range" id="playerSlider" min="2" max="8" value="8" class="slider">
+            <!-- Game Controls -->
+            <div class="game-controls">
+                <div class="control-row">
+                    <div class="control-group">
+                        <label class="control-label">Игроков за столом</label>
+                        <div class="player-selector">
+                            <button class="btn btn-minus" id="playerMinus">−</button>
+                            <span class="player-count" id="playerCount">8</span>
+                            <button class="btn btn-plus" id="playerPlus">+</button>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Размер блайнда</label>
+                        <div class="blind-input">
+                            <input type="number" id="blindSize" value="100" min="1" step="10">
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Actions -->
-                <div class="section">
-                    <h3>Действие за столом</h3>
-                    <div class="action-buttons">
-                        <button class="btn btn-action" data-action="fold">Fold</button>
-                        <button class="btn btn-action" data-action="limp">Limp</button>
-                        <button class="btn btn-action" data-action="call">Call</button>
-                        <button class="btn btn-action" data-action="raise">Raise</button>
-                        <button class="btn btn-action" data-action="3bet">3-Bet</button>
-                        <button class="btn btn-action" data-action="4bet">4-Bet</button>
-                        <button class="btn btn-action" data-action="allin">All-In</button>
+                <div class="actions-section">
+                    <div class="actions-label">Что делают соперники? <span class="actions-tip">(нажимай по порядку)</span></div>
+                    <div class="action-buttons" id="actionButtons">
+                        <button class="btn btn-action btn-fold" data-action="fold">
+                            <span class="action-icon">✗</span> Фолд
+                        </button>
+                        <button class="btn btn-action btn-limp" data-action="limp">
+                            <span class="action-icon">→</span> Лимп
+                        </button>
+                        <button class="btn btn-action btn-call" data-action="call">
+                            <span class="action-icon">✓</span> Колл
+                        </button>
+                        <button class="btn btn-action btn-raise" data-action="raise">
+                            <span class="action-icon">↑</span> Рейз
+                        </button>
+                        <button class="btn btn-action btn-3bet" data-action="3bet">
+                            <span class="action-icon">⇑</span> 3-Бет
+                        </button>
+                        <button class="btn btn-action btn-allin" data-action="allin">
+                            <span class="action-icon">★</span> Олл-ин
+                        </button>
                     </div>
-                    <div class="action-log" id="actionLog"></div>
-                    <button class="btn btn-small btn-undo" id="undoAction">↩ Отменить</button>
+                    <div class="action-log" id="actionLog">
+                        <span class="action-log-empty">Пока никто не действовал</span>
+                    </div>
+                    <button class="btn btn-undo" id="undoAction">↩ Отменить последнее</button>
                 </div>
 
-                <!-- Pot & Bet -->
-                <div class="section pot-section">
-                    <div class="pot-inputs">
-                        <label>Пот: <input type="number" id="potSize" value="0" min="0"></label>
-                        <label>Ставка: <input type="number" id="betSize" value="0" min="0"></label>
+                <!-- Pot Display -->
+                <div class="pot-display">
+                    <div class="pot-icon">💰</div>
+                    <div class="pot-info">
+                        <span class="pot-label">Банк (примерно)</span>
+                        <span class="pot-value" id="potValue">0</span>
                     </div>
                 </div>
-
-                <!-- Get Advice Button -->
-                <button class="btn btn-advice" id="getAdvice">АНАЛИЗ</button>
             </div>
 
-            <!-- Right: Advice Panel -->
-            <div class="advice-panel" id="advicePanel">
-                <div class="advice-placeholder">
-                    Введите карты и нажмите АНАЛИЗ
+            <!-- Big Advice Button -->
+            <button class="btn btn-advice" id="getAdvice">
+                <span class="advice-icon">🎯</span>
+                <span>ЧТО ДЕЛАТЬ?</span>
+            </button>
+        </div>
+
+        <!-- Advice Panel -->
+        <div class="advice-panel" id="advicePanel">
+            <div class="advice-empty">
+                <div class="advice-empty-icon">🃏</div>
+                <div>Выбери свои карты и нажми <strong>«ЧТО ДЕЛАТЬ?»</strong></div>
+                <div class="advice-empty-tip">Подсказка: правый клик по карте — убрать её</div>
+            </div>
+        </div>
+
+        <!-- Cheat Sheet (Combinations) -->
+        <div class="cheat-sheet" id="cheatSheet">
+            <div class="cheat-sheet-inner">
+                <div class="cs-header">
+                    <h3>Комбинации покера</h3>
+                    <button class="btn-close" id="closeCheatSheet">✕</button>
+                </div>
+                <div class="cs-body">
+                    <div class="cs-combo"><span class="cs-rank">1</span><span class="cs-name">Роял-флеш</span><span class="cs-desc">A K Q J T одной масти</span></div>
+                    <div class="cs-combo"><span class="cs-rank">2</span><span class="cs-name">Стрит-флеш</span><span class="cs-desc">5 карт подряд одной масти</span></div>
+                    <div class="cs-combo"><span class="cs-rank">3</span><span class="cs-name">Каре</span><span class="cs-desc">4 одинаковых карты</span></div>
+                    <div class="cs-combo"><span class="cs-rank">4</span><span class="cs-name">Фулл-хаус</span><span class="cs-desc">Тройка + пара</span></div>
+                    <div class="cs-combo"><span class="cs-rank">5</span><span class="cs-name">Флеш</span><span class="cs-desc">5 карт одной масти</span></div>
+                    <div class="cs-combo"><span class="cs-rank">6</span><span class="cs-name">Стрит</span><span class="cs-desc">5 карт подряд</span></div>
+                    <div class="cs-combo"><span class="cs-rank">7</span><span class="cs-name">Тройка (сет/трипс)</span><span class="cs-desc">3 одинаковых карты</span></div>
+                    <div class="cs-combo"><span class="cs-rank">8</span><span class="cs-name">Две пары</span><span class="cs-desc">2 разных пары</span></div>
+                    <div class="cs-combo"><span class="cs-rank">9</span><span class="cs-name">Пара</span><span class="cs-desc">2 одинаковых карты</span></div>
+                    <div class="cs-combo"><span class="cs-rank">10</span><span class="cs-name">Старшая карта</span><span class="cs-desc">Ничего — играет самая высокая</span></div>
+                </div>
+                <div class="cs-footer">
+                    <h4>Полезные термины</h4>
+                    <div class="cs-term"><strong>Лимп</strong> — зайти за минимум (размер ББ)</div>
+                    <div class="cs-term"><strong>Колл</strong> — уравнять чужую ставку</div>
+                    <div class="cs-term"><strong>Рейз</strong> — поднять ставку</div>
+                    <div class="cs-term"><strong>3-Бет</strong> — рейз на чей-то рейз</div>
+                    <div class="cs-term"><strong>Олл-ин</strong> — поставить все фишки</div>
+                    <div class="cs-term"><strong>Фолд</strong> — сбросить карты</div>
+                    <div class="cs-term"><strong>Блайнд</strong> — обязательная ставка (МБ = малый, ББ = большой)</div>
+                    <div class="cs-term"><strong>Позиция</strong> — чем позже ходишь, тем лучше (BTN = лучшая)</div>
+                    <div class="cs-term"><strong>Дро</strong> — не готовая комбинация, нужна ещё 1 карта</div>
+                    <div class="cs-term"><strong>Натс</strong> — лучшая возможная рука на данном борде</div>
+                    <div class="cs-term"><strong>Эквити</strong> — шанс выиграть в %</div>
                 </div>
             </div>
         </div>
@@ -93,7 +203,7 @@
         <div class="card-picker-overlay" id="cardPickerOverlay">
             <div class="card-picker" id="cardPicker">
                 <div class="picker-header">
-                    <span>Выберите карту</span>
+                    <span id="pickerTitle">Выбери карту</span>
                     <button class="btn-close" id="closePicker">✕</button>
                 </div>
                 <div class="picker-suits" id="pickerSuits"></div>
