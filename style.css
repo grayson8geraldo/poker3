@@ -189,28 +189,47 @@ body {
 /* ===== POKER TABLE (Visual) ===== */
 .table-section {
     margin-bottom: 6px;
-}
-
-.poker-table {
-    position: relative;
     background: var(--bg2);
     border-radius: var(--radius);
-    padding: 12px;
+    padding: 10px;
     border: 1px solid var(--bg4);
-    min-height: 120px;
+}
+
+/* Rows of seats: top, middle (left + felt + right), bottom */
+.table-top-seats,
+.table-bottom-seats {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    padding: 4px 0;
+}
+
+.table-middle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.table-side-seats {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 50px;
+    align-items: center;
 }
 
 .table-felt {
+    flex: 1;
     background: linear-gradient(135deg, #1a472a, #2d6a4f);
-    border-radius: 60px;
-    height: 64px;
+    border-radius: 50px;
+    height: 60px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     border: 3px solid #3a8a5c;
-    margin: 24px 20px 30px 20px;
     box-shadow: inset 0 2px 15px rgba(0,0,0,0.3);
+    margin: 4px 0;
 }
 
 .table-label {
@@ -227,29 +246,19 @@ body {
     margin-top: 2px;
 }
 
-.seats-ring {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    pointer-events: none;
-}
-
+/* Seat chip (each position) */
 .seat {
-    position: absolute;
-    pointer-events: all;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
+    gap: 1px;
     cursor: pointer;
     transition: all 0.2s;
 }
 
 .seat-chip {
-    width: 36px;
-    height: 36px;
+    width: 38px;
+    height: 38px;
     border-radius: 50%;
     background: var(--bg4);
     border: 2px solid var(--text3);
@@ -261,6 +270,7 @@ body {
     color: var(--text2);
     transition: all 0.2s;
     text-transform: uppercase;
+    flex-shrink: 0;
 }
 
 .seat:hover .seat-chip {
@@ -272,47 +282,31 @@ body {
     background: var(--accent);
     border-color: var(--accent);
     color: #fff;
-    box-shadow: 0 0 15px rgba(233, 69, 96, 0.5);
+    box-shadow: 0 0 12px rgba(233, 69, 96, 0.5);
     transform: scale(1.1);
 }
 
-.seat.dealer .seat-chip::after {
-    content: 'D';
-    position: absolute;
-    top: -4px;
-    right: -4px;
-    width: 14px;
-    height: 14px;
-    background: var(--yellow);
-    color: #000;
-    font-size: 8px;
-    font-weight: 900;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
 .seat-label {
-    font-size: 8px;
+    font-size: 7px;
     color: var(--text3);
     font-weight: 600;
     white-space: nowrap;
-    max-width: 60px;
     text-align: center;
-    overflow: hidden;
 }
 
 .seat.active .seat-label {
     color: var(--accent);
+    font-weight: 700;
 }
 
 .position-hint {
     text-align: center;
     font-size: 11px;
-    color: var(--text3);
-    margin-top: 4px;
+    color: var(--text2);
+    margin-top: 6px;
     min-height: 16px;
+    line-height: 1.4;
+    padding: 0 8px;
 }
 
 /* ===== MAIN AREA ===== */
@@ -410,14 +404,16 @@ body {
 .board-labels {
     display: flex;
     align-items: center;
-    margin-top: 2px;
+    margin-top: 3px;
     font-size: 9px;
     color: var(--text3);
     font-weight: 600;
+    gap: 0;
 }
 
-.bl-flop { width: 150px; text-align: center; }
-.bl-turn { width: 58px; text-align: center; }
+/* 3 flop cards * (48px + 6px gap) = ~162px; turn = 48+10 margin; river = 48+4 margin */
+.bl-flop { width: 156px; text-align: center; }
+.bl-turn { width: 58px; text-align: center; padding-left: 4px; }
 .bl-river { width: 52px; text-align: center; }
 
 /* ===== GAME CONTROLS ===== */
@@ -1224,6 +1220,38 @@ body {
 .picker-card.diamonds { color: var(--diamond); }
 .picker-card.clubs { color: var(--club); }
 .picker-card.spades { color: var(--spade); }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 380px) {
+    #app { padding: 4px; }
+
+    .card-slot { width: 46px; height: 64px; }
+    .card-slot.filled .card-rank { font-size: 17px; }
+    .card-slot.filled .card-suit { font-size: 15px; }
+
+    .board-slot { width: 40px; height: 56px; }
+    .board-slot .card-rank { font-size: 14px !important; }
+    .board-slot .card-suit { font-size: 12px !important; }
+
+    .turn-slot { margin-left: 6px; }
+    .river-slot { margin-left: 2px; }
+
+    .bl-flop { width: 130px; }
+    .bl-turn { width: 46px; }
+    .bl-river { width: 42px; }
+
+    .seat-chip { width: 32px; height: 32px; font-size: 8px; }
+
+    .action-buttons { grid-template-columns: repeat(3, 1fr); gap: 3px; }
+    .btn-action { padding: 6px 2px; font-size: 11px; }
+
+    .picker-cards { gap: 2px; }
+    .picker-card { padding: 8px 1px; font-size: 12px; }
+
+    .advice-hero-action { font-size: 28px; }
+
+    .range-cell { font-size: 5.5px; }
+}
 
 /* ===== SCROLLBAR ===== */
 ::-webkit-scrollbar { width: 4px; }

@@ -27,45 +27,47 @@
     }
 
     // ---- VISUAL TABLE ----
-    // Seat positions around an oval table (percentages)
-    const seatLayout8 = [
-        { left: 50, top: 100 },  // BB (bottom center)
-        { left: 15, top: 88 },   // SB (bottom left)
-        { left: 0,  top: 55 },   // BTN (left)
-        { left: 5,  top: 20 },   // CO (top left)
-        { left: 25, top: 0 },    // HJ (top)
-        { left: 50, top: 0 },    // MP+1 (top center)
-        { left: 75, top: 0 },    // MP (top right)
-        { left: 95, top: 20 },   // UTG+1 (right top)
-        { left: 100,top: 55 },   // UTG (right)
-    ];
-
+    // Layout seats in 3 zones: top row, left+right sides, bottom row
+    // For N seats we distribute: top = ~40%, sides = 1 each, bottom = rest
     function renderTable() {
-        const ring = document.getElementById('seatsRing');
-        ring.innerHTML = '';
+        const topC = document.getElementById('topSeats');
+        const leftC = document.getElementById('leftSeats');
+        const rightC = document.getElementById('rightSeats');
+        const bottomC = document.getElementById('bottomSeats');
+        topC.innerHTML = '';
+        leftC.innerHTML = '';
+        rightC.innerHTML = '';
+        bottomC.innerHTML = '';
+
         const positions = getActivePositions();
-        const info = document.getElementById('tableInfo');
+        const n = positions.length;
 
-        // Place seats around the table
-        // We reverse positions so BB is at bottom, then go clockwise
-        const reversed = [...positions].reverse();
-        const total = reversed.length;
+        // Distribute seats around the "table":
+        // Bottom: BB, SB (last 2)  |  Left: BTN  |  Top: middle positions  |  Right: early positions
+        // We'll split smartly based on count
+        let bottomSlots, leftSlots, topSlots, rightSlots;
 
-        reversed.forEach((pos, i) => {
+        if (n <= 3) {
+            bottomSlots = positions.slice(-1);          // BB
+            topSlots = positions.slice(0, n - 1);       // rest on top
+            leftSlots = [];
+            rightSlots = [];
+        } else if (n <= 5) {
+            bottomSlots = positions.slice(-2);          // SB, BB
+            leftSlots = [positions[n - 3]];             // BTN
+            topSlots = positions.slice(0, n - 3);       // rest
+            rightSlots = [];
+        } else {
+            bottomSlots = positions.slice(-2);          // SB, BB
+            leftSlots = [positions[n - 3]];             // BTN
+            rightSlots = [positions[0]];                // UTG (earliest)
+            topSlots = positions.slice(1, n - 3);       // middle positions
+        }
+
+        function createSeat(pos) {
             const posInfo = GTO.POSITION_INFO[pos];
             const seat = document.createElement('div');
             seat.className = 'seat' + (pos === state.position ? ' active' : '');
-
-            // Calculate position
-            const angle = (i / total) * Math.PI * 2 - Math.PI / 2;
-            const radiusX = 46;
-            const radiusY = 38;
-            const cx = 50 + radiusX * Math.cos(angle);
-            const cy = 54 + radiusY * Math.sin(angle);
-
-            seat.style.left = cx + '%';
-            seat.style.top = cy + '%';
-            seat.style.transform = 'translate(-50%, -50%)';
 
             const chip = document.createElement('div');
             chip.className = 'seat-chip';
@@ -77,15 +79,18 @@
 
             seat.appendChild(chip);
             seat.appendChild(label);
-
             seat.addEventListener('click', () => {
                 state.position = pos;
                 renderTable();
                 updatePositionHint();
             });
+            return seat;
+        }
 
-            ring.appendChild(seat);
-        });
+        topSlots.forEach(p => topC.appendChild(createSeat(p)));
+        leftSlots.forEach(p => leftC.appendChild(createSeat(p)));
+        rightSlots.forEach(p => rightC.appendChild(createSeat(p)));
+        bottomSlots.forEach(p => bottomC.appendChild(createSeat(p)));
 
         updatePositionHint();
     }
