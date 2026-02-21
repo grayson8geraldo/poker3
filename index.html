@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GTO Poker Advisor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <h1>GTO Advisor</h1>
+            <div class="hand-counter">
+                Раздача: <span id="handNumber">1</span>
+                <button id="newHandBtn" class="btn btn-new-hand">Новая раздача</button>
+            </div>
+        </header>
+
+        <!-- Position Bar -->
+        <section class="position-bar">
+            <div class="position-seats" id="positionSeats"></div>
+        </section>
+
+        <!-- Main Layout -->
+        <div class="main-layout">
+            <!-- Left: Input Panel -->
+            <div class="input-panel">
+                <!-- My Cards -->
+                <div class="section">
+                    <h3>Мои карты</h3>
+                    <div class="my-cards">
+                        <div class="card-slot" id="myCard1" data-slot="myCard1">?</div>
+                        <div class="card-slot" id="myCard2" data-slot="myCard2">?</div>
+                    </div>
+                </div>
+
+                <!-- Board Cards -->
+                <div class="section">
+                    <h3>Борд</h3>
+                    <div class="board-cards">
+                        <div class="card-slot board" id="flop1" data-slot="flop1">?</div>
+                        <div class="card-slot board" id="flop2" data-slot="flop2">?</div>
+                        <div class="card-slot board" id="flop3" data-slot="flop3">?</div>
+                        <div class="card-slot board turn-card" id="turn" data-slot="turn">?</div>
+                        <div class="card-slot board river-card" id="river" data-slot="river">?</div>
+                    </div>
+                </div>
+
+                <!-- Players -->
+                <div class="section">
+                    <h3>Игроки в раздаче: <span id="playerCount">8</span></h3>
+                    <input type="range" id="playerSlider" min="2" max="8" value="8" class="slider">
+                </div>
+
+                <!-- Actions -->
+                <div class="section">
+                    <h3>Действие за столом</h3>
+                    <div class="action-buttons">
+                        <button class="btn btn-action" data-action="fold">Fold</button>
+                        <button class="btn btn-action" data-action="limp">Limp</button>
+                        <button class="btn btn-action" data-action="call">Call</button>
+                        <button class="btn btn-action" data-action="raise">Raise</button>
+                        <button class="btn btn-action" data-action="3bet">3-Bet</button>
+                        <button class="btn btn-action" data-action="4bet">4-Bet</button>
+                        <button class="btn btn-action" data-action="allin">All-In</button>
+                    </div>
+                    <div class="action-log" id="actionLog"></div>
+                    <button class="btn btn-small btn-undo" id="undoAction">↩ Отменить</button>
+                </div>
+
+                <!-- Pot & Bet -->
+                <div class="section pot-section">
+                    <div class="pot-inputs">
+                        <label>Пот: <input type="number" id="potSize" value="0" min="0"></label>
+                        <label>Ставка: <input type="number" id="betSize" value="0" min="0"></label>
+                    </div>
+                </div>
+
+                <!-- Get Advice Button -->
+                <button class="btn btn-advice" id="getAdvice">АНАЛИЗ</button>
+            </div>
+
+            <!-- Right: Advice Panel -->
+            <div class="advice-panel" id="advicePanel">
+                <div class="advice-placeholder">
+                    Введите карты и нажмите АНАЛИЗ
+                </div>
+            </div>
+        </div>
+
+        <!-- Card Picker Modal -->
+        <div class="card-picker-overlay" id="cardPickerOverlay">
+            <div class="card-picker" id="cardPicker">
+                <div class="picker-header">
+                    <span>Выберите карту</span>
+                    <button class="btn-close" id="closePicker">✕</button>
+                </div>
+                <div class="picker-suits" id="pickerSuits"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="gto-engine.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
