@@ -416,6 +416,69 @@ body {
 .bl-turn { width: 58px; text-align: center; padding-left: 4px; }
 .bl-river { width: 52px; text-align: center; }
 
+/* ===== TOURNAMENT BAR ===== */
+.tourney-bar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.mzone-display, .phase-display, .stack-display {
+    flex: 1;
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 6px 8px;
+    text-align: center;
+}
+
+.mzone-label, .phase-label, .stack-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.mzone-value, .phase-value, .stack-value {
+    font-size: 16px;
+    font-weight: 800;
+    margin-top: 2px;
+}
+
+.mzone-value.green  { color: #2ecc71; }
+.mzone-value.yellow { color: #f1c40f; }
+.mzone-value.orange { color: #e67e22; }
+.mzone-value.red    { color: #e74c3c; }
+.mzone-value.dead   { color: #636e72; }
+
+/* Push/Fold indicator */
+.pushfold-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 800;
+    color: #fff;
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    animation: pulse 1.5s infinite;
+    margin-top: 4px;
+}
+
+@keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(231, 76, 60, 0); }
+}
+
+/* Phase badge */
+.phase-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #fff;
+}
+
 /* ===== GAME CONTROLS ===== */
 .game-controls {
     background: var(--bg2);

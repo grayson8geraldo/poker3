@@ -902,9 +902,10 @@ const GTO = (() => {
     }
 
     // ---- AUTO POT ESTIMATION ----
-    function estimatePot(actions, blindSize, playersInHand) {
-        let pot = blindSize * 1.5; // SB + BB
-        let currentBet = blindSize; // BB is 1 blind
+    function estimatePot(actions, blindSize, playersInHand, ante) {
+        const anteTotal = (ante || 0) * playersInHand;
+        let pot = blindSize * 1.5 + anteTotal; // SB + BB + antes
+        let currentBet = blindSize;
         let raises = 0;
 
         for (const a of actions) {
@@ -934,11 +935,256 @@ const GTO = (() => {
         return { pot: Math.round(pot), currentBet: Math.round(currentBet) };
     }
 
+    // ================================================================
+    // TOURNAMENT ENGINE
+    // M-ratio, push/fold, ICM, phase awareness
+    // ================================================================
+
+    // M-ratio = stack / (SB + BB + antes)
+    function calculateM(stack, blindSize, playersAtTable, ante) {
+        const sb = blindSize * 0.5;
+        const bb = blindSize;
+        const totalAntes = (ante || 0) * playersAtTable;
+        const orbCost = sb + bb + totalAntes;
+        if (orbCost <= 0) return 999;
+        return stack / orbCost;
+    }
+
+    // Effective M adjusts for fewer players (short-handed table)
+    function effectiveM(m, playersAtTable) {
+        return m * (playersAtTable / 10);
+    }
+
+    // M-Zone classification (Dan Harrington system)
+    function getMZone(m) {
+        if (m > 20)  return { zone: 'green',  name: 'Зелёная', color: '#2ecc71', emoji: '🟢',
+            desc: 'Комфортная зона — играй нормальную стратегию, можно маневрировать.',
+            tip: 'У тебя достаточно фишек для любого хода. Играй стандартную GTO-стратегию.' };
+        if (m > 10)  return { zone: 'yellow', name: 'Жёлтая',  color: '#f1c40f', emoji: '🟡',
+            desc: 'Стек сокращается — играй плотнее, выбирай моменты для агрессии.',
+            tip: 'Не лимпуй! Только рейз или фолд. Ищи хорошие споты для пуша. Избегай мелких банков.' };
+        if (m > 5)   return { zone: 'orange', name: 'Оранжевая', color: '#e67e22', emoji: '🟠',
+            desc: 'ОПАСНО — скоро push/fold. Нужно двигаться первым!',
+            tip: 'Рейз олл-ин или фолд. Никаких минрейзов. Не жди идеальную руку — скоро блайнды тебя съедят.' };
+        if (m > 1)   return { zone: 'red',    name: 'Красная',  color: '#e74c3c', emoji: '🔴',
+            desc: 'КРИТИЧНО — только push или fold! Любая приличная рука = олл-ин.',
+            tip: 'Ты в режиме push/fold. Смотри таблицу ниже. Пушь первым — не коллируй чужие рейзы без топ-рук.' };
+        return { zone: 'dead', name: 'Мёртвая',  color: '#636e72', emoji: '💀',
+            desc: 'Почти без фишек — пуш с любой картой при первой возможности.',
+            tip: 'Ставь олл-ин при первом удобном случае. Даже 72o лучше чем быть съеденным блайндами.' };
+    }
+
+    // ---- PUSH/FOLD CHARTS ----
+    // Returns true if hand is a push for given position and M-ratio
+    function isPushHand(hand, position, m, playersLeft) {
+        const score = handStrengthScore(hand);
+
+        // M > 15: no push/fold needed
+        if (m > 15) return null;
+
+        // Thresholds: lower score = push with weaker hands
+        // Position matters a lot in push/fold
+        const posQuality = (POSITION_INFO[position] || {}).quality || 2;
+
+        let threshold;
+
+        if (m <= 3) {
+            // Desperate: push very wide
+            const baseThresh = { 1: 30, 2: 25, 3: 20, 4: 15, 5: 10 };
+            threshold = baseThresh[posQuality] || 25;
+            // Adjust for players left to act
+            threshold += Math.max(0, (playersLeft - 3)) * 5;
+        } else if (m <= 6) {
+            // Short: push wide but not crazy
+            const baseThresh = { 1: 55, 2: 50, 3: 42, 4: 35, 5: 28 };
+            threshold = baseThresh[posQuality] || 45;
+            threshold += Math.max(0, (playersLeft - 3)) * 4;
+        } else if (m <= 10) {
+            // Medium-short: selective pushes
+            const baseThresh = { 1: 72, 2: 68, 3: 60, 4: 52, 5: 42 };
+            threshold = baseThresh[posQuality] || 60;
+            threshold += Math.max(0, (playersLeft - 3)) * 3;
+        } else {
+            // M 10-15: only push premium from bad positions
+            const baseThresh = { 1: 82, 2: 78, 3: 72, 4: 65, 5: 55 };
+            threshold = baseThresh[posQuality] || 72;
+        }
+
+        threshold = Math.max(0, Math.min(95, threshold));
+
+        return {
+            shouldPush: score >= threshold,
+            threshold,
+            score,
+            isPushFoldMode: m <= 10
+        };
+    }
+
+    // ---- TOURNAMENT PHASE ----
+    function detectPhase(playersRemaining, totalPlayers, paidPlaces) {
+        if (!totalPlayers || totalPlayers <= 0) return 'normal';
+        const ratio = playersRemaining / totalPlayers;
+        const nearBubble = paidPlaces > 0 && playersRemaining <= paidPlaces * 1.2 && playersRemaining > paidPlaces;
+        const inMoney = paidPlaces > 0 && playersRemaining <= paidPlaces;
+        const finalTable = playersRemaining <= 9;
+
+        if (nearBubble) return 'bubble';
+        if (finalTable && inMoney) return 'final_table';
+        if (inMoney) return 'in_money';
+        if (ratio > 0.7) return 'early';
+        if (ratio > 0.4) return 'middle';
+        return 'late';
+    }
+
+    const PHASE_INFO = {
+        'early':       { name: 'Ранняя стадия', emoji: '🌅', color: '#2ecc71',
+            tip: 'Играй тайтово, набирай фишки без риска. Не блефуй много — соперники коллируют всё. Цени свои фишки, их нельзя докупить.' },
+        'middle':      { name: 'Средняя стадия', emoji: '☀️', color: '#f1c40f',
+            tip: 'Блайнды растут — начинай воровать банки. Атакуй слабых игроков и короткие стеки. Не застревай со средними руками.' },
+        'late':        { name: 'Поздняя стадия', emoji: '🌙', color: '#e67e22',
+            tip: 'Блайнды огромные, много коротких стеков. Атакуй пассивных. Если у тебя большой стек — давли. Маленький — ищи пуш.' },
+        'bubble':      { name: 'ПУЗЫРЬ!', emoji: '🫧', color: '#e74c3c',
+            tip: 'На пузыре средние стеки играют очень тайтово! Большой стек — давление на всех. Средний — терпи, не рискуй. Маленький — пушь, пока тебя ждут фолды.' },
+        'in_money':    { name: 'В призах', emoji: '💰', color: '#2ecc71',
+            tip: 'Ты уже в деньгах! Теперь играй на максимальный результат. Можно раскрепоститься и атаковать.' },
+        'final_table': { name: 'Финальный стол', emoji: '🏆', color: '#f39c12',
+            tip: 'Финалка! Каждое место = больше денег. Давли средние стеки если ты чип-лидер. Если мало фишек — ищи дабл-ап.' },
+        'normal':      { name: 'Турнир', emoji: '🎮', color: '#3498db',
+            tip: 'Стандартная турнирная стратегия.' }
+    };
+
+    // ---- TOURNAMENT PREFLOP DECISION ----
+    function tournamentPreflopDecision(hand, position, actions, playersInHand, tournamentInfo) {
+        const { stack, blindSize, ante, playersRemaining, totalPlayers, paidPlaces } = tournamentInfo;
+
+        const m = calculateM(stack, blindSize, playersInHand, ante);
+        const mZone = getMZone(m);
+        const phase = detectPhase(playersRemaining, totalPlayers, paidPlaces);
+        const phaseInfo = PHASE_INFO[phase] || PHASE_INFO['normal'];
+        const pushFold = isPushHand(hand, position, m, playersInHand);
+        const score = handStrengthScore(hand);
+
+        // If in push/fold mode and nobody raised yet
+        const hasRaise = actions.includes('raise') || actions.includes('3bet') || actions.includes('4bet') || actions.includes('allin');
+
+        if (pushFold && pushFold.isPushFoldMode && !hasRaise) {
+            // PUSH/FOLD MODE
+            const tips = [];
+            let action, confidence;
+
+            if (pushFold.shouldPush) {
+                action = 'ОЛЛ-ИН';
+                confidence = m <= 5 ? 90 : 75;
+                tips.push(`M = ${m.toFixed(1)} — ты в режиме push/fold.`);
+                tips.push('Твоя рука достаточно сильна для олл-ина с этой позиции.');
+                if (m <= 3) tips.push('У тебя мало фишек — нужно рисковать СЕЙЧАС пока есть фолд-эквити.');
+            } else {
+                action = 'ФОЛД';
+                confidence = 80;
+                tips.push(`M = ${m.toFixed(1)} — режим push/fold.`);
+                tips.push('Рука слишком слабая для пуша из этой позиции. Жди лучшего момента.');
+                if (m <= 3) tips.push('Но не жди слишком долго — через пару кругов блайнды тебя съедят!');
+            }
+
+            // Bubble adjustment
+            if (phase === 'bubble') {
+                tips.push('⚠️ ПУЗЫРЬ! Средние стеки фолдят чаще — используй это для пуша.');
+                if (!pushFold.shouldPush && score >= pushFold.threshold - 10) {
+                    tips.push('На пузыре можно пушить чуть шире — противники боятся вылететь.');
+                }
+            }
+
+            return {
+                action, confidence, score, category: getHandCategory(score),
+                mixStrategy: null, tips,
+                inRange: pushFold.shouldPush,
+                position, positionInfo: POSITION_INFO[position],
+                playersLeft: playersInHand,
+                m, mZone, phase, phaseInfo,
+                isPushFold: true, pushFold
+            };
+        }
+
+        // Not in push/fold — use standard decision but adjust for M and phase
+        const baseDecision = preflopDecision(hand, position, actions, playersInHand);
+
+        // Adjust tips based on tournament context
+        const tips = [...baseDecision.tips];
+
+        if (m <= 20) {
+            tips.unshift(`M = ${m.toFixed(1)} (${mZone.name} зона) — ${mZone.tip}`);
+        }
+
+        if (phase === 'bubble') {
+            if (baseDecision.action === 'РЕЙЗ' || baseDecision.action === '3-БЕТ') {
+                tips.push('🫧 На пузыре агрессия ценнее — соперники часто фолдят чтобы дожить до призов.');
+            }
+            if (baseDecision.action === 'КОЛЛ') {
+                tips.push('🫧 На пузыре осторожнее с коллами — лучше рейзить или фолдить.');
+            }
+        }
+
+        if (phase === 'early') {
+            if (score < 60 && baseDecision.action !== 'ФОЛД') {
+                tips.push('🌅 Ранняя стадия — можно не рисковать с маргинальными руками. Фишки ценны.');
+            }
+        }
+
+        // Stack-depth adjustments
+        if (m > 10 && m <= 20) {
+            // Yellow zone: tighten limps, prefer raise/fold
+            if (baseDecision.action === 'КОЛЛ' && !hasRaise) {
+                tips.push('🟡 Жёлтая зона — лучше рейз или фолд, не лимп. Сохраняй фолд-эквити.');
+            }
+        }
+
+        return {
+            ...baseDecision,
+            tips,
+            m, mZone, phase, phaseInfo,
+            isPushFold: false, pushFold
+        };
+    }
+
+    // ---- PUSH/FOLD RANGE TABLE for display ----
+    function generatePushFoldGrid(position, m, playersLeft) {
+        const grid = [];
+        for (let i = 12; i >= 0; i--) {
+            for (let j = 12; j >= 0; j--) {
+                const r1 = RANKS[i], r2 = RANKS[j];
+                let name, hand;
+                if (i === j) {
+                    name = r1 + r2;
+                    hand = { pair: true, high: i+2, low: j+2, suited: false, connected: false, oneGap: false, twoGap: false, name };
+                } else if (i > j) {
+                    name = r1 + r2 + 's';
+                    hand = { pair: false, high: i+2, low: j+2, suited: true, connected: Math.abs(i-j)===1, oneGap: Math.abs(i-j)===2, twoGap: false, name };
+                } else {
+                    name = r2 + r1 + 'o';
+                    hand = { pair: false, high: j+2, low: i+2, suited: false, connected: Math.abs(i-j)===1, oneGap: Math.abs(i-j)===2, twoGap: false, name };
+                }
+                const pf = isPushHand(hand, position, m, playersLeft);
+                let status = 'out';
+                if (pf && pf.shouldPush) status = 'in';
+                else if (pf) {
+                    const s = handStrengthScore(hand);
+                    if (s >= pf.threshold - 6) status = 'marginal';
+                }
+                grid.push({ name, status });
+            }
+        }
+        return grid;
+    }
+
     return {
         RANKS, SUITS, RANK_VALUES, POSITIONS_8MAX, POSITION_INFO,
         classifyHand, handStrengthScore, getHandCategory, getHandNickname,
         describeHandForBeginner, preflopDecision, analyzeBoardTexture,
         describeBoardForBeginner, evaluateHandOnBoard, postflopDecision,
-        getSizingRecommendation, generateRangeGrid, estimatePot
+        getSizingRecommendation, generateRangeGrid, estimatePot,
+        // Tournament
+        calculateM, effectiveM, getMZone, isPushHand,
+        detectPhase, PHASE_INFO, tournamentPreflopDecision,
+        generatePushFoldGrid
     };
 })();

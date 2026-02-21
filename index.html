@@ -94,7 +94,43 @@
 
             <!-- Game Controls -->
             <div class="game-controls">
+                <!-- Tournament Info -->
+                <div class="tourney-bar" id="tourneyBar">
+                    <div class="mzone-display" id="mzoneDisplay">
+                        <div class="mzone-label">M-зона</div>
+                        <div class="mzone-value" id="mzoneValue">—</div>
+                    </div>
+                    <div class="phase-display" id="phaseDisplay">
+                        <div class="phase-label">Фаза</div>
+                        <div class="phase-value" id="phaseValue">—</div>
+                    </div>
+                    <div class="stack-display">
+                        <div class="stack-label">BB в стеке</div>
+                        <div class="stack-value" id="stackBB">—</div>
+                    </div>
+                </div>
+
                 <div class="control-row">
+                    <div class="control-group">
+                        <label class="control-label">Мой стек</label>
+                        <div class="blind-input">
+                            <input type="number" id="stackSize" value="10000" min="0" step="100">
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Блайнд (ББ)</label>
+                        <div class="blind-input">
+                            <input type="number" id="blindSize" value="100" min="1" step="10">
+                        </div>
+                    </div>
+                </div>
+                <div class="control-row">
+                    <div class="control-group">
+                        <label class="control-label">Анте</label>
+                        <div class="blind-input">
+                            <input type="number" id="anteSize" value="0" min="0" step="5">
+                        </div>
+                    </div>
                     <div class="control-group">
                         <label class="control-label">Игроков за столом</label>
                         <div class="player-selector">
@@ -103,10 +139,18 @@
                             <button class="btn btn-plus" id="playerPlus">+</button>
                         </div>
                     </div>
+                </div>
+                <div class="control-row">
                     <div class="control-group">
-                        <label class="control-label">Размер блайнда</label>
+                        <label class="control-label">Осталось игроков</label>
                         <div class="blind-input">
-                            <input type="number" id="blindSize" value="100" min="1" step="10">
+                            <input type="number" id="playersRemaining" value="50" min="2" step="1">
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Призовых мест</label>
+                        <div class="blind-input">
+                            <input type="number" id="paidPlaces" value="8" min="1" step="1">
                         </div>
                     </div>
                 </div>

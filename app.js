@@ -14,6 +14,10 @@
         actions: [],
         handNumber: 1,
         blindSize: 100,
+        stackSize: 10000,
+        anteSize: 0,
+        playersRemaining: 50,
+        paidPlaces: 8,
         activeSlot: null,
         usedCards: new Set(),
     };
@@ -122,6 +126,32 @@
             if (i === currentIdx) el.classList.add('active');
             else if (i < currentIdx) el.classList.add('completed');
         });
+    }
+
+    // ---- TOURNAMENT INFO ----
+    function readTourneyInputs() {
+        state.stackSize = parseInt(document.getElementById('stackSize').value) || 10000;
+        state.blindSize = parseInt(document.getElementById('blindSize').value) || 100;
+        state.anteSize = parseInt(document.getElementById('anteSize').value) || 0;
+        state.playersRemaining = parseInt(document.getElementById('playersRemaining').value) || 50;
+        state.paidPlaces = parseInt(document.getElementById('paidPlaces').value) || 8;
+    }
+
+    function updateTourneyDisplay() {
+        readTourneyInputs();
+        const m = GTO.calculateM(state.stackSize, state.blindSize, state.playerCount, state.anteSize);
+        const mZone = GTO.getMZone(m);
+        const bbInStack = state.blindSize > 0 ? (state.stackSize / state.blindSize) : 0;
+        const totalPlayers = Math.max(state.playersRemaining, state.playerCount);
+        const phase = GTO.detectPhase(state.playersRemaining, totalPlayers, state.paidPlaces);
+        const phaseInfo = GTO.PHASE_INFO[phase] || GTO.PHASE_INFO['normal'];
+
+        const mEl = document.getElementById('mzoneValue');
+        mEl.textContent = m > 100 ? '99+' : m.toFixed(1);
+        mEl.className = 'mzone-value ' + mZone.zone;
+
+        document.getElementById('phaseValue').innerHTML = `<span style="color:${phaseInfo.color}">${phaseInfo.emoji} ${phaseInfo.name}</span>`;
+        document.getElementById('stackBB').textContent = bbInStack.toFixed(0) + ' BB';
     }
 
     // ---- CARD PICKER ----
@@ -290,9 +320,10 @@
 
     // ---- POT CALCULATION ----
     function updatePot() {
-        state.blindSize = parseInt(document.getElementById('blindSize').value) || 100;
-        const est = GTO.estimatePot(state.actions, state.blindSize, state.playerCount);
+        readTourneyInputs();
+        const est = GTO.estimatePot(state.actions, state.blindSize, state.playerCount, state.anteSize);
         document.getElementById('potValue').textContent = est.pot;
+        updateTourneyDisplay();
     }
 
     // ---- NEW HAND ----
@@ -336,8 +367,8 @@
             return;
         }
 
-        state.blindSize = parseInt(document.getElementById('blindSize').value) || 100;
-        const potEst = GTO.estimatePot(state.actions, state.blindSize, state.playerCount);
+        readTourneyInputs();
+        const potEst = GTO.estimatePot(state.actions, state.blindSize, state.playerCount, state.anteSize);
 
         const hand = GTO.classifyHand(state.myCards[0], state.myCards[1]);
         const score = GTO.handStrengthScore(hand);
@@ -349,16 +380,46 @@
         let html = '';
 
         if (street === 'preflop') {
-            const decision = GTO.preflopDecision(hand, state.position, state.actions, state.playerCount);
+            // Use tournament engine
+            const tournamentInfo = {
+                stack: state.stackSize,
+                blindSize: state.blindSize,
+                ante: state.anteSize,
+                playersRemaining: state.playersRemaining,
+                totalPlayers: Math.max(state.playersRemaining, state.playerCount),
+                paidPlaces: state.paidPlaces
+            };
+            const decision = GTO.tournamentPreflopDecision(hand, state.position, state.actions, state.playerCount, tournamentInfo);
+
             html += renderHero(decision.action, decision.confidence, decision.tips[0] || '');
 
             html += '<div class="advice-body">';
+
+            // M-Zone & Phase card
+            if (decision.mZone) {
+                html += `<div class="advice-card">
+                    <div class="advice-card-title">${decision.mZone.emoji} Турнирная ситуация</div>
+                    <div class="advice-row"><span class="label">M-ratio</span><span class="value" style="color:${decision.mZone.color}">${decision.m.toFixed(1)} — ${decision.mZone.name} зона</span></div>
+                    <div class="advice-row"><span class="label">Фаза</span><span class="value" style="color:${decision.phaseInfo.color}">${decision.phaseInfo.emoji} ${decision.phaseInfo.name}</span></div>
+                    <div class="advice-row"><span class="label">Стек</span><span class="value">${state.stackSize} (${(state.stackSize / state.blindSize).toFixed(0)} BB)</span></div>
+                    ${decision.isPushFold ? '<div class="pushfold-badge">РЕЖИМ PUSH / FOLD</div>' : ''}
+                    <p style="font-size:12px;color:var(--text2);margin-top:6px">${decision.mZone.desc}</p>
+                </div>`;
+            }
 
             // Beginner tip
             html += `<div class="beginner-tip">
                 <div class="beginner-tip-header">💡 Подсказка</div>
                 ${decision.tips.map(t => `<p>${t}</p>`).join('')}
             </div>`;
+
+            // Phase tip
+            if (decision.phaseInfo && decision.phase !== 'normal') {
+                html += `<div class="beginner-tip" style="border-left-color:${decision.phaseInfo.color}">
+                    <div class="beginner-tip-header" style="color:${decision.phaseInfo.color}">${decision.phaseInfo.emoji} ${decision.phaseInfo.name}</div>
+                    <p>${decision.phaseInfo.tip}</p>
+                </div>`;
+            }
 
             // Hand info
             html += `<div class="advice-card">
@@ -385,11 +446,16 @@
                 html += renderMixStrategy(decision.mixStrategy);
             }
 
-            // Range grid
-            const scenario = state.actions.includes('3bet') ? '3bet' :
-                           state.actions.includes('raise') ? '3bet' : 'open';
-            const grid = GTO.generateRangeGrid(state.position, scenario);
-            html += renderRangeGrid(grid, hand.name, state.position, scenario);
+            // Push/Fold grid or Range grid
+            if (decision.isPushFold) {
+                const pfGrid = GTO.generatePushFoldGrid(state.position, decision.m, state.playerCount);
+                html += renderRangeGrid(pfGrid, hand.name, state.position, 'push/fold');
+            } else {
+                const scenario = state.actions.includes('3bet') ? '3bet' :
+                               state.actions.includes('raise') ? '3bet' : 'open';
+                const grid = GTO.generateRangeGrid(state.position, scenario);
+                html += renderRangeGrid(grid, hand.name, state.position, scenario);
+            }
 
             html += '</div>';
 
@@ -526,7 +592,11 @@
     }
 
     function renderRangeGrid(grid, currentHand, position, scenario) {
-        const scenarioNames = { open: 'открытия', '3bet': 'колла 3-бета', '4bet': 'колла 4-бета' };
+        const scenarioNames = {
+            open: 'открытия', '3bet': 'колла 3-бета', '4bet': 'колла 4-бета',
+            'push/fold': 'PUSH (олл-ин)'
+        };
+        const isPF = scenario === 'push/fold';
         let cells = grid.map(cell => {
             let cls = 'range-cell';
             if (cell.status === 'in') cls += ' in-range';
@@ -535,14 +605,21 @@
             return `<div class="${cls}" title="${cell.name}">${cell.name}</div>`;
         }).join('');
 
+        const title = isPF
+            ? `🚀 Диапазон PUSH (${position})`
+            : `📋 Диапазон ${scenarioNames[scenario] || 'открытия'} (${position})`;
+        const desc = isPF
+            ? 'Зелёным — руки с которыми идёшь олл-ин. Жёлтым — на грани (можно при хорошей ситуации). Рамка — твоя рука.'
+            : 'Зелёным отмечены руки, которые стоит играть с этой позиции. Рамка — твоя рука.';
+
         return `<div class="advice-card">
-            <div class="advice-card-title">📋 Диапазон ${scenarioNames[scenario] || 'открытия'} (${position})</div>
+            <div class="advice-card-title">${title}</div>
             <div class="range-grid">${cells}</div>
             <div class="range-legend">
-                <span class="leg-in">Играть</span>
+                <span class="leg-in">${isPF ? 'Push' : 'Играть'}</span>
                 <span class="leg-maybe">Может быть</span>
             </div>
-            <p style="font-size:11px;color:var(--text3);margin-top:4px">Зелёным отмечены руки, которые стоит играть с этой позиции. Рамка — твоя рука.</p>
+            <p style="font-size:11px;color:var(--text3);margin-top:4px">${desc}</p>
         </div>`;
     }
 
@@ -591,9 +668,12 @@
             }
         });
 
-        // Blind size
-        document.getElementById('blindSize').addEventListener('change', updatePot);
-        document.getElementById('blindSize').addEventListener('input', updatePot);
+        // Tournament inputs
+        ['blindSize', 'stackSize', 'anteSize', 'playersRemaining', 'paidPlaces'].forEach(id => {
+            const el = document.getElementById(id);
+            el.addEventListener('change', updatePot);
+            el.addEventListener('input', updatePot);
+        });
 
         // Actions
         document.querySelectorAll('.btn-action').forEach(btn => {
