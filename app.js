@@ -11,7 +11,7 @@
         boardCards: [null, null, null, null, null],
         position: 'BTN',
         playerCount: 8,
-        actions: [],
+        situation: 'none',  // none | limp | raise | 3bet | allin
         handNumber: 1,
         blindSize: 100,
         stackSize: 10000,
@@ -233,6 +233,7 @@
         updatePot();
         closeCardPicker();
         autoOpenNext(slot);
+        autoAnalyze();
     }
 
     function clearCardSlot(slotId) {
@@ -290,42 +291,32 @@
         });
     }
 
-    // ---- ACTIONS ----
-    function addAction(actionType) {
-        state.actions.push(actionType);
-        renderActions();
-        updatePot();
-    }
-
-    function undoAction() {
-        state.actions.pop();
-        renderActions();
-        updatePot();
-    }
-
-    function renderActions() {
-        const log = document.getElementById('actionLog');
-        log.innerHTML = '';
-        const classMap = { fold: 'fold', limp: 'limp', call: 'call', raise: 'raise', '3bet': 'bet3', allin: 'allin' };
-        const nameMap = { fold: 'Фолд', limp: 'Лимп', call: 'Колл', raise: 'Рейз', '3bet': '3-Бет', allin: 'Олл-ин' };
-
-        if (state.actions.length === 0) {
-            log.innerHTML = '<span class="action-log-empty">Пока никто не действовал</span>';
-            return;
+    // ---- SITUATION (replaces old action log) ----
+    // Convert situation to actions array for engine compatibility
+    function situationToActions() {
+        switch (state.situation) {
+            case 'limp':  return ['limp'];
+            case 'raise': return ['raise'];
+            case '3bet':  return ['raise', '3bet'];
+            case 'allin': return ['allin'];
+            default:      return [];
         }
+    }
 
-        state.actions.forEach((a, i) => {
-            const tag = document.createElement('span');
-            tag.className = 'action-tag ' + (classMap[a] || '');
-            tag.textContent = `${nameMap[a] || a}`;
-            log.appendChild(tag);
+    function setSituation(sit) {
+        state.situation = sit;
+        document.querySelectorAll('.btn-situation').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.situation === sit);
         });
+        updatePot();
+        autoAnalyze();
     }
 
     // ---- POT CALCULATION ----
     function updatePot() {
         readTourneyInputs();
-        const est = GTO.estimatePot(state.actions, state.blindSize, state.playerCount, state.anteSize);
+        const actions = situationToActions();
+        const est = GTO.estimatePot(actions, state.blindSize, state.playerCount, state.anteSize);
         document.getElementById('potValue').textContent = est.pot;
         updateTourneyDisplay();
     }
@@ -339,22 +330,24 @@
 
         state.myCards = [null, null];
         state.boardCards = [null, null, null, null, null];
-        state.actions = [];
+        state.situation = 'none';
         state.usedCards.clear();
         state.handNumber++;
 
         document.getElementById('handNumber').textContent = state.handNumber;
         document.getElementById('cardInput').value = '';
+        document.querySelectorAll('.btn-situation').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.situation === 'none');
+        });
         renderTable();
         renderCardSlots();
-        renderActions();
         updateStreetProgress();
         updatePot();
 
         document.getElementById('advicePanel').innerHTML = `
             <div class="advice-empty">
                 <div class="advice-empty-icon">🃏</div>
-                <div>Выбери свои карты и нажми <strong>«ЧТО ДЕЛАТЬ?»</strong></div>
+                <div>Выбери свои карты — совет появится автоматически</div>
                 <div class="advice-empty-tip">Позиция сдвинулась → ты теперь <strong>${state.position}</strong></div>
             </div>`;
     }
@@ -373,7 +366,8 @@
         }
 
         readTourneyInputs();
-        const potEst = GTO.estimatePot(state.actions, state.blindSize, state.playerCount, state.anteSize);
+        const actions = situationToActions();
+        const potEst = GTO.estimatePot(actions, state.blindSize, state.playerCount, state.anteSize);
 
         const hand = GTO.classifyHand(state.myCards[0], state.myCards[1]);
         const score = GTO.handStrengthScore(hand);
@@ -394,7 +388,7 @@
                 totalPlayers: Math.max(state.playersRemaining, state.playerCount),
                 paidPlaces: state.paidPlaces
             };
-            const decision = GTO.tournamentPreflopDecision(hand, state.position, state.actions, state.playerCount, tournamentInfo);
+            const decision = GTO.tournamentPreflopDecision(hand, state.position, actions, state.playerCount, tournamentInfo);
 
             html += renderHero(decision.action, decision.confidence, decision.tips[0] || '');
 
@@ -456,8 +450,8 @@
                 const pfGrid = GTO.generatePushFoldGrid(state.position, decision.m, state.playerCount);
                 html += renderRangeGrid(pfGrid, hand.name, state.position, 'push/fold');
             } else {
-                const scenario = state.actions.includes('3bet') ? '3bet' :
-                               state.actions.includes('raise') ? '3bet' : 'open';
+                const scenario = actions.includes('3bet') ? '3bet' :
+                               actions.includes('raise') ? '3bet' : 'open';
                 const grid = GTO.generateRangeGrid(state.position, scenario);
                 html += renderRangeGrid(grid, hand.name, state.position, scenario);
             }
@@ -469,11 +463,10 @@
             const activeBoardCards = state.boardCards.filter(c => c !== null);
             const boardAnalysis = GTO.analyzeBoardTexture(activeBoardCards);
             const handEval = GTO.evaluateHandOnBoard(state.myCards[0], state.myCards[1], activeBoardCards);
-            const foldCount = state.actions.filter(a => a === 'fold').length;
-            const playersLeft = Math.max(2, state.playerCount - foldCount);
+            const playersLeft = Math.max(2, state.playerCount);
 
             const decision = GTO.postflopDecision(
-                handEval, boardAnalysis, state.actions,
+                handEval, boardAnalysis, actions,
                 state.position, potEst.pot, potEst.currentBet, playersLeft, street
             );
 
@@ -634,6 +627,19 @@
         return '#e74c3c';
     }
 
+    // ---- AUTO ANALYZE ----
+    // Runs analysis automatically when we have enough data
+    function autoAnalyze() {
+        const hasHoleCards = state.myCards[0] && state.myCards[1];
+        if (!hasHoleCards) return;
+
+        const boardCount = state.boardCards.filter(c => c !== null).length;
+        // Auto-analyze on: 2 hole cards, 3 flop cards, 4 (turn), 5 (river)
+        if (boardCount === 0 || boardCount === 3 || boardCount === 4 || boardCount === 5) {
+            setTimeout(() => runAnalysis(), 100);
+        }
+    }
+
     // ---- KEYBOARD CARD INPUT ----
     // Parses text like "qh10d", "AsTc", "KhQd", "qhтб" (Russian suit letters)
     function parseCardInput(text) {
@@ -723,20 +729,8 @@
         renderCardSlots();
         updateStreetProgress();
         updatePot();
+        autoAnalyze();
         return true;
-    }
-
-    // ---- ACTIONS TOGGLE ----
-    function toggleActions() {
-        const body = document.getElementById('actionsBody');
-        const arrow = document.getElementById('actionsArrow');
-        if (body.style.display === 'none') {
-            body.style.display = 'block';
-            arrow.textContent = '▾';
-        } else {
-            body.style.display = 'none';
-            arrow.textContent = '▸';
-        }
     }
 
     // ---- EVENT LISTENERS ----
@@ -798,14 +792,10 @@
             }
         });
 
-        // Actions toggle (collapsible)
-        document.getElementById('actionsToggle').addEventListener('click', toggleActions);
-
-        // Actions
-        document.querySelectorAll('.btn-action').forEach(btn => {
-            btn.addEventListener('click', () => addAction(btn.dataset.action));
+        // Situation buttons
+        document.querySelectorAll('.btn-situation').forEach(btn => {
+            btn.addEventListener('click', () => setSituation(btn.dataset.situation));
         });
-        document.getElementById('undoAction').addEventListener('click', undoAction);
 
         // New hand
         document.getElementById('newHandBtn').addEventListener('click', newHand);

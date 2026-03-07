@@ -461,29 +461,50 @@ body {
     color: var(--text2);
 }
 
-/* ===== ACTIONS TOGGLE ===== */
-.actions-toggle {
+/* ===== SITUATION PICKER ===== */
+.situation-section {
+    margin-bottom: 4px;
+}
+
+.situation-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+
+.situation-buttons {
     display: flex;
-    align-items: center;
-    gap: 6px;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.btn-situation {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    border: 2px solid var(--bg4);
+    border-radius: 8px;
+    background: var(--bg3);
+    color: var(--text2);
     cursor: pointer;
-    padding: 6px 0;
-    user-select: none;
+    transition: all 0.15s;
+    text-align: center;
+    white-space: nowrap;
 }
 
-.actions-toggle:hover .actions-label {
-    color: var(--text);
+.btn-situation:active {
+    transform: scale(0.95);
 }
 
-.actions-toggle-arrow {
-    font-size: 14px;
-    color: var(--text3);
-    transition: transform 0.2s;
-    width: 16px;
-}
-
-.actions-collapsible {
-    margin-top: 6px;
+.btn-situation.active {
+    border-color: var(--accent);
+    background: rgba(233, 69, 96, 0.15);
+    color: var(--accent);
 }
 
 /* ===== TOURNAMENT BAR ===== */

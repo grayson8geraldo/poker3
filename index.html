@@ -160,38 +160,15 @@
                     </div>
                 </div>
 
-                <!-- Actions (collapsible, optional) -->
-                <div class="actions-section">
-                    <div class="actions-toggle" id="actionsToggle">
-                        <span class="actions-toggle-arrow" id="actionsArrow">▸</span>
-                        <span class="actions-label">Действия соперников</span>
-                        <span class="actions-tip">(необязательно)</span>
-                    </div>
-                    <div class="actions-collapsible" id="actionsBody" style="display:none">
-                    <div class="action-buttons" id="actionButtons">
-                        <button class="btn btn-action btn-fold" data-action="fold">
-                            <span class="action-icon">✗</span> Фолд
-                        </button>
-                        <button class="btn btn-action btn-limp" data-action="limp">
-                            <span class="action-icon">→</span> Лимп
-                        </button>
-                        <button class="btn btn-action btn-call" data-action="call">
-                            <span class="action-icon">✓</span> Колл
-                        </button>
-                        <button class="btn btn-action btn-raise" data-action="raise">
-                            <span class="action-icon">↑</span> Рейз
-                        </button>
-                        <button class="btn btn-action btn-3bet" data-action="3bet">
-                            <span class="action-icon">⇑</span> 3-Бет
-                        </button>
-                        <button class="btn btn-action btn-allin" data-action="allin">
-                            <span class="action-icon">★</span> Олл-ин
-                        </button>
-                    </div>
-                    <div class="action-log" id="actionLog">
-                        <span class="action-log-empty">Пока никто не действовал</span>
-                    </div>
-                    <button class="btn btn-undo" id="undoAction">↩ Отменить последнее</button>
+                <!-- Situation Picker (one tap) -->
+                <div class="situation-section">
+                    <div class="situation-label">Что было до тебя?</div>
+                    <div class="situation-buttons" id="situationButtons">
+                        <button class="btn btn-situation active" data-situation="none">Никто не зашёл</button>
+                        <button class="btn btn-situation" data-situation="limp">Лимп</button>
+                        <button class="btn btn-situation" data-situation="raise">Рейз</button>
+                        <button class="btn btn-situation" data-situation="3bet">3-Бет</button>
+                        <button class="btn btn-situation" data-situation="allin">Олл-ин</button>
                     </div>
                 </div>
 
@@ -216,7 +193,7 @@
         <div class="advice-panel" id="advicePanel">
             <div class="advice-empty">
                 <div class="advice-empty-icon">🃏</div>
-                <div>Выбери свои карты и нажми <strong>«ЧТО ДЕЛАТЬ?»</strong></div>
+                <div>Выбери свои карты — совет появится автоматически</div>
                 <div class="advice-empty-tip">Подсказка: правый клик по карте — убрать её</div>
             </div>
         </div>
