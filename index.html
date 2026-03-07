@@ -75,6 +75,11 @@
                         </div>
                     </div>
                 </div>
+                <!-- Keyboard input for cards -->
+                <div class="keyboard-input-group">
+                    <input type="text" id="cardInput" class="card-text-input" placeholder="Ввод: qh10d или asкч" autocomplete="off" autocapitalize="off" spellcheck="false">
+                    <div class="card-input-hint">Формат: <b>QhTd</b> = дама черв + 10 бубен. Масти: <b>h</b>=♥ <b>d</b>=♦ <b>c</b>=♣ <b>s</b>=♠</div>
+                </div>
                 <div class="cards-group">
                     <div class="cards-label">Борд (карты на столе)</div>
                     <div class="cards-row">
@@ -155,9 +160,14 @@
                     </div>
                 </div>
 
-                <!-- Actions -->
+                <!-- Actions (collapsible, optional) -->
                 <div class="actions-section">
-                    <div class="actions-label">Что делают соперники? <span class="actions-tip">(нажимай по порядку)</span></div>
+                    <div class="actions-toggle" id="actionsToggle">
+                        <span class="actions-toggle-arrow" id="actionsArrow">▸</span>
+                        <span class="actions-label">Действия соперников</span>
+                        <span class="actions-tip">(необязательно)</span>
+                    </div>
+                    <div class="actions-collapsible" id="actionsBody" style="display:none">
                     <div class="action-buttons" id="actionButtons">
                         <button class="btn btn-action btn-fold" data-action="fold">
                             <span class="action-icon">✗</span> Фолд
@@ -182,6 +192,7 @@
                         <span class="action-log-empty">Пока никто не действовал</span>
                     </div>
                     <button class="btn btn-undo" id="undoAction">↩ Отменить последнее</button>
+                    </div>
                 </div>
 
                 <!-- Pot Display -->

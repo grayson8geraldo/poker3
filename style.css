@@ -416,6 +416,76 @@ body {
 .bl-turn { width: 58px; text-align: center; padding-left: 4px; }
 .bl-river { width: 52px; text-align: center; }
 
+/* ===== KEYBOARD CARD INPUT ===== */
+.keyboard-input-group {
+    margin-top: 6px;
+}
+
+.card-text-input {
+    width: 100%;
+    padding: 9px 12px;
+    border: 2px solid var(--bg4);
+    border-radius: 10px;
+    background: var(--bg3);
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: border-color 0.2s;
+}
+
+.card-text-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--bg);
+}
+
+.card-text-input::placeholder {
+    color: var(--text3);
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 13px;
+}
+
+.card-input-hint {
+    font-size: 10px;
+    color: var(--text3);
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+.card-input-hint b {
+    color: var(--text2);
+}
+
+/* ===== ACTIONS TOGGLE ===== */
+.actions-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    padding: 6px 0;
+    user-select: none;
+}
+
+.actions-toggle:hover .actions-label {
+    color: var(--text);
+}
+
+.actions-toggle-arrow {
+    font-size: 14px;
+    color: var(--text3);
+    transition: transform 0.2s;
+    width: 16px;
+}
+
+.actions-collapsible {
+    margin-top: 6px;
+}
+
 /* ===== TOURNAMENT BAR ===== */
 .tourney-bar {
     display: flex;

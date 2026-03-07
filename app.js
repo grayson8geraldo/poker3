@@ -245,18 +245,22 @@
     }
 
     function autoOpenNext(currentSlot) {
-        const order = ['myCard1', 'myCard2', 'flop1', 'flop2', 'flop3', 'turn', 'river'];
-        const idx = order.indexOf(currentSlot);
-        for (let i = idx + 1; i < order.length; i++) {
-            const s = order[i];
-            const [arr, j] = getSlotIndex(s);
-            if (!state[arr][j]) {
-                if (i <= 4) { // auto-open through flop
-                    setTimeout(() => openCardPicker(s), 180);
-                }
-                return;
-            }
+        // Only auto-open the second hole card after the first
+        // Do NOT auto-open flop — user needs preflop advice first
+        if (currentSlot === 'myCard1' && !state.myCards[1]) {
+            setTimeout(() => openCardPicker('myCard2'), 180);
+            return;
         }
+        // After flop cards, auto-open next flop card
+        if (currentSlot === 'flop1' && !state.boardCards[1]) {
+            setTimeout(() => openCardPicker('flop2'), 180);
+            return;
+        }
+        if (currentSlot === 'flop2' && !state.boardCards[2]) {
+            setTimeout(() => openCardPicker('flop3'), 180);
+            return;
+        }
+        // Don't auto-open turn/river — let user decide when
     }
 
     function renderCardSlots() {
@@ -340,6 +344,7 @@
         state.handNumber++;
 
         document.getElementById('handNumber').textContent = state.handNumber;
+        document.getElementById('cardInput').value = '';
         renderTable();
         renderCardSlots();
         renderActions();
@@ -629,6 +634,111 @@
         return '#e74c3c';
     }
 
+    // ---- KEYBOARD CARD INPUT ----
+    // Parses text like "qh10d", "AsTc", "KhQd", "qhтб" (Russian suit letters)
+    function parseCardInput(text) {
+        text = text.trim().toLowerCase();
+        if (!text) return [];
+
+        // Map Russian suit letters: ч=h(черви), б=d(бубны), т=c(трефы), п=s(пики)
+        // Also map к→c for клубы/трефы alias
+        const suitMap = {
+            'h': 'h', 'd': 'd', 'c': 'c', 's': 's',
+            'ч': 'h', 'б': 'd', 'т': 'c', 'п': 's', 'к': 'c',
+            '♥': 'h', '♦': 'd', '♣': 'c', '♠': 's'
+        };
+
+        // Rank aliases
+        const rankMap = {
+            'a': 'A', 'к': 'K', 'k': 'K', 'q': 'Q', 'д': 'Q',
+            'j': 'J', 'в': 'J', 't': 'T', '10': 'T',
+            '9': '9', '8': '8', '7': '7', '6': '6',
+            '5': '5', '4': '4', '3': '3', '2': '2'
+        };
+
+        const cards = [];
+        let i = 0;
+        while (i < text.length && cards.length < 7) {
+            // Skip spaces and separators
+            if (' ,;.-_/'.includes(text[i])) { i++; continue; }
+
+            // Parse rank
+            let rank = null;
+            // Check for "10" first
+            if (i + 1 < text.length && text[i] === '1' && text[i+1] === '0') {
+                rank = 'T';
+                i += 2;
+            } else if (rankMap[text[i]]) {
+                rank = rankMap[text[i]];
+                i++;
+            }
+            if (!rank) { i++; continue; }
+
+            // Parse suit
+            if (i >= text.length) break;
+            const suit = suitMap[text[i]];
+            if (!suit) { i++; continue; }
+            i++;
+
+            const cardId = rank + suit;
+            if (GTO.RANKS.includes(rank) && GTO.SUITS.includes(suit)) {
+                cards.push(cardId);
+            }
+        }
+        return cards;
+    }
+
+    function applyCardInput(text) {
+        const cards = parseCardInput(text);
+        if (cards.length === 0) return false;
+
+        // Find the next empty slots to fill
+        const slots = ['myCard1', 'myCard2', 'flop1', 'flop2', 'flop3', 'turn', 'river'];
+        let slotIdx = 0;
+
+        // Find first empty slot
+        for (let si = 0; si < slots.length; si++) {
+            const [arr, idx] = getSlotIndex(slots[si]);
+            if (!state[arr][idx]) { slotIdx = si; break; }
+            if (si === slots.length - 1) return false; // all full
+        }
+
+        for (const cardId of cards) {
+            if (state.usedCards.has(cardId)) continue; // skip duplicates
+
+            // Find next empty slot
+            while (slotIdx < slots.length) {
+                const [arr, idx] = getSlotIndex(slots[slotIdx]);
+                if (!state[arr][idx]) break;
+                slotIdx++;
+            }
+            if (slotIdx >= slots.length) break;
+
+            const [arr, idx] = getSlotIndex(slots[slotIdx]);
+            state.usedCards.add(cardId);
+            state[arr][idx] = cardId;
+            slotIdx++;
+        }
+
+        renderCardSlots();
+        updateStreetProgress();
+        updatePot();
+        return true;
+    }
+
+    // ---- ACTIONS TOGGLE ----
+    function toggleActions() {
+        const body = document.getElementById('actionsBody');
+        const arrow = document.getElementById('actionsArrow');
+        if (body.style.display === 'none') {
+            body.style.display = 'block';
+            arrow.textContent = '▾';
+        } else {
+            body.style.display = 'none';
+            arrow.textContent = '▸';
+        }
+    }
+
     // ---- EVENT LISTENERS ----
     function init() {
         renderTable();
@@ -675,6 +785,22 @@
             el.addEventListener('input', updatePot);
         });
 
+        // Keyboard card input
+        const cardInput = document.getElementById('cardInput');
+        cardInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const text = cardInput.value.trim();
+                if (text) {
+                    applyCardInput(text);
+                    cardInput.value = '';
+                }
+            }
+        });
+
+        // Actions toggle (collapsible)
+        document.getElementById('actionsToggle').addEventListener('click', toggleActions);
+
         // Actions
         document.querySelectorAll('.btn-action').forEach(btn => {
             btn.addEventListener('click', () => addAction(btn.dataset.action));
@@ -706,7 +832,7 @@
                 closeCardPicker();
                 document.getElementById('cheatSheet').classList.remove('show');
             }
-            if (e.key === 'Enter' && !document.getElementById('cardPickerOverlay').classList.contains('show')) {
+            if (e.key === 'Enter' && !document.getElementById('cardPickerOverlay').classList.contains('show') && document.activeElement.id !== 'cardInput') {
                 runAnalysis();
             }
         });
