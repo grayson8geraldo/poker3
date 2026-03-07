@@ -325,7 +325,7 @@
     function newHand() {
         const active = getActivePositions();
         const currentIdx = active.indexOf(state.position);
-        const nextIdx = (currentIdx + 1) % active.length;
+        const nextIdx = (currentIdx - 1 + active.length) % active.length;
         state.position = active[nextIdx];
 
         state.myCards = [null, null];
