@@ -303,6 +303,13 @@
         }
     }
 
+    // Were we the preflop aggressor? (for c-bet logic)
+    // none/limp = we opened/raised → aggressor
+    // raise/3bet/allin = we defended → not aggressor
+    function wasPreflopAggressor() {
+        return state.situation === 'none' || state.situation === 'limp';
+    }
+
     function setSituation(sit) {
         state.situation = sit;
         document.querySelectorAll('.btn-situation').forEach(btn => {
@@ -467,7 +474,8 @@
 
             const decision = GTO.postflopDecision(
                 handEval, boardAnalysis, actions,
-                state.position, potEst.pot, potEst.currentBet, playersLeft, street
+                state.position, potEst.pot, potEst.currentBet, playersLeft, street,
+                wasPreflopAggressor()
             );
 
             if (!decision) {
@@ -532,14 +540,23 @@
             // Sizing
             if (decision.action === 'БЕТ' || decision.action === 'РЕЙЗ') {
                 const sizes = GTO.getSizingRecommendation(boardAnalysis, decision.strengthLevel, street, potEst.pot);
-                if (sizes.length > 0) {
+                // Show exact sizing from engine if available
+                const exactSizing = decision.sizing && potEst.pot > 0
+                    ? Math.round(potEst.pot * decision.sizing.potPercent / 100)
+                    : null;
+                if (sizes.length > 0 || exactSizing) {
                     html += `<div class="advice-card">
-                        <div class="advice-card-title">💰 Сколько ставить</div>
-                        <div class="sizing-options">
+                        <div class="advice-card-title">💰 Сколько ставить</div>`;
+                    if (exactSizing) {
+                        html += `<div class="advice-row"><span class="label">Рекомендуемый размер</span><span class="value" style="font-weight:700;color:var(--accent)">${exactSizing} (${decision.sizing.potPercent}% пота)</span></div>`;
+                    }
+                    if (sizes.length > 0) {
+                        html += `<div class="sizing-options">
                             ${sizes.map(s => `<span class="sizing-chip ${s.recommended ? 'recommended' : ''}">${s.label}</span>`).join('')}
                         </div>
-                        ${sizes.filter(s => s.recommended).map(s => `<div class="sizing-reason">${s.reason}</div>`).join('')}
-                    </div>`;
+                        ${sizes.filter(s => s.recommended).map(s => `<div class="sizing-reason">${s.reason}</div>`).join('')}`;
+                    }
+                    html += `</div>`;
                 }
             }
 

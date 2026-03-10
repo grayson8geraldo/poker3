@@ -671,149 +671,342 @@ const GTO = (() => {
     }
 
     // ---- POSTFLOP DECISION ----
-    function postflopDecision(handEval, boardAnalysis, actions, position, potSize, betSize, playersLeft, street) {
+    function postflopDecision(handEval, boardAnalysis, actions, position, potSize, betSize, playersLeft, street, isPreflopAggressor) {
         if (!handEval || !boardAnalysis) return null;
 
         const hasRaise = actions.includes('raise');
         const has3Bet = actions.includes('3bet');
         const hasAllIn = actions.includes('allin');
-        const foldCount = actions.filter(a => a === 'fold').length;
-        const activePlayers = Math.max(2, playersLeft - foldCount);
+
+        // Were we the preflop aggressor? (important for c-bet strategy)
+        const wasPreflopAggressor = isPreflopAggressor !== undefined ? isPreflopAggressor : false;
 
         const equity = handEval.equity;
         const strength = handEval.strengthLevel;
         const outs = handEval.outs;
         const wetness = boardAnalysis.wetness;
+        const activePlayers = Math.max(2, playersLeft);
+        const isHeadsUp = activePlayers <= 2;
+        const isMultiway = activePlayers >= 3;
+        const inPosition = ['CO', 'BTN'].includes(position);
+        const earlyPos = ['UTG', 'UTG+1', 'MP'].includes(position);
 
         const potOdds = betSize > 0 ? betSize / (potSize + betSize) * 100 : 0;
-        const positionBonus = ['CO', 'BTN'].includes(position) ? 8 : position === 'SB' ? -5 : 0;
 
-        let facingAggression = 0;
-        if (hasAllIn) facingAggression = 4;
-        else if (has3Bet) facingAggression = 3;
-        else if (hasRaise) facingAggression = 2;
-        else facingAggression = 1;
+        // Facing a postflop bet/raise? Use betSize as indicator
+        const facingBet = betSize > 0;
+
+        // Board characteristics
+        const isDry = wetness < 30;
+        const isWet = wetness >= 50;
+        const hasDraws = handEval.draws.length > 0;
+        const hasStrongDraw = outs >= 8; // flush draw or OESD
+        const hasComboDraw = outs >= 12;  // flush + straight draw
+        const hasNutDraw = handEval.draws.some(d => d.includes('Натс'));
 
         let action, confidence;
         let mixStrategy = null;
         let sizing = null;
         let tips = [];
 
+        // ============ MONSTERS (strength >= 8): Sets+, Flushes, Full Houses ============
         if (strength >= 8) {
-            if (facingAggression >= 3) {
-                action = 'ОЛЛ-ИН'; confidence = 95;
-                tips.push('У тебя монстр-рука! Соперник агрессивен — самое время идти олл-ин и забрать большой пот.');
-            } else if (facingAggression >= 2) {
-                action = 'РЕЙЗ'; confidence = 90;
-                sizing = { potPercent: 75 };
-                tips.push('Очень сильная рука — рейзи для максимального вэлью (чтобы забрать побольше фишек).');
-            } else {
-                if (['SB', 'BB', 'UTG'].includes(position) && activePlayers > 1) {
-                    action = 'ЧЕК-РЕЙЗ'; confidence = 80;
-                    mixStrategy = { fold: 0, call: 20, raise: 80 };
-                    tips.push('Сильная рука, но ты ходишь первым — сделай чек, а когда соперник поставит — рейз!');
-                    tips.push('Это называется «чек-рейз» — ловушка для соперника.');
+            if (facingBet) {
+                if (hasAllIn) {
+                    action = 'КОЛЛ'; confidence = 95;
+                    tips.push('Монстр-рука vs олл-ин — однозначно коллируем!');
                 } else {
-                    action = 'БЕТ'; confidence = 85;
-                    sizing = { potPercent: 70 };
-                    tips.push('Сильная рука в позиции — ставь 65-75% от банка чтобы взять максимум.');
+                    action = 'РЕЙЗ'; confidence = 90;
+                    sizing = { potPercent: 75 };
+                    tips.push('Очень сильная рука — рейзи для максимального вэлью.');
+                    if (isWet) tips.push('На мокром борде рейз ещё важнее — не давай дро дешёвую карту.');
+                }
+            } else {
+                // No bet facing us
+                if (!inPosition && isHeadsUp) {
+                    // Out of position — check-raise trap
+                    action = 'ЧЕК'; confidence = 80;
+                    mixStrategy = { fold: 0, call: 0, raise: 100 };
+                    tips.push('Ловушка! Чек, а когда соперник поставит — рейз (чек-рейз).');
+                    tips.push('Из ранней позиции чек-рейз с монстром собирает больше фишек.');
+                } else {
+                    action = 'БЕТ'; confidence = 88;
+                    sizing = { potPercent: isWet ? 75 : 50 };
+                    tips.push('Сильная рука в позиции — ставь и набирай банк.');
                 }
             }
-        } else if (strength >= 6) {
-            const effectiveEquity = equity + positionBonus;
-            if (facingAggression >= 3) {
-                if (effectiveEquity >= 60) {
-                    action = 'КОЛЛ'; confidence = 70;
-                    tips.push('Хорошая рука, но соперник очень агрессивен. Коллируем осторожно.');
+        }
+        // ============ STRONG (strength 6-7): Two pair, overpair, trips, straights ============
+        else if (strength >= 6) {
+            if (facingBet) {
+                if (hasAllIn) {
+                    if (equity >= 55) {
+                        action = 'КОЛЛ'; confidence = 70;
+                        tips.push('Сильная рука vs олл-ин. Эквити хватает — коллируем.');
+                    } else {
+                        action = 'ФОЛД'; confidence = 60;
+                        tips.push('Рука хорошая, но против олл-ина на этом борде рискованно.');
+                    }
+                } else {
+                    action = 'КОЛЛ'; confidence = 78;
+                    mixStrategy = { fold: 5, call: 55, raise: 40 };
+                    tips.push('Сильная рука — коллируем. Иногда рейз для вэлью.');
+                    if (isWet) tips.push('Мокрый борд — можно рейзить для защиты от дро.');
+                }
+            } else {
+                // We should almost always bet with strong hands
+                action = 'БЕТ'; confidence = 82;
+                if (isWet) {
+                    sizing = { potPercent: 67 };
+                    tips.push('Мокрый борд — ставь ⅔ пота чтобы защититься от дро.');
+                } else if (isDry) {
+                    sizing = { potPercent: 33 };
+                    tips.push('Сухой борд — маленький бет ⅓ пота. Мало что может измениться.');
+                } else {
+                    sizing = { potPercent: 50 };
+                    tips.push('Сильная рука — ставим ½ пота для вэлью.');
+                }
+                if (wasPreflopAggressor) tips.push('Ты рейзил префлоп — продолжай давить (конт-бет).');
+            }
+        }
+        // ============ MEDIUM (strength 4-5): Top pair good kicker, TPTK ============
+        else if (strength >= 4) {
+            if (facingBet) {
+                if (hasAllIn) {
+                    action = 'ФОЛД'; confidence = 75;
+                    tips.push('Средняя рука vs олл-ин — слишком рискованно. Фолд.');
+                } else if (potOdds > 0 && equity > potOdds) {
+                    action = 'КОЛЛ'; confidence = 68;
+                    tips.push(`Шанс выиграть ${equity.toFixed(0)}%, а нужно ${potOdds.toFixed(0)}% — математически выгодно коллировать.`);
+                } else if (hasDraws) {
+                    action = 'КОЛЛ'; confidence = 60;
+                    tips.push('Пара + дро — коллируем, есть шанс усилиться.');
+                } else {
+                    action = 'КОЛЛ'; confidence = 55;
+                    mixStrategy = { fold: 35, call: 60, raise: 5 };
+                    tips.push('Топ пара vs бет — обычно коллируем, но иногда фолд если борд опасный.');
+                    if (isWet) tips.push('Мокрый борд делает топ пару уязвимой.');
+                }
+            } else {
+                // No bet facing — we should usually bet
+                if (wasPreflopAggressor) {
+                    // C-bet with top pair — standard play
+                    action = 'БЕТ'; confidence = 80;
+                    sizing = { potPercent: isDry ? 33 : 55 };
+                    tips.push('Конт-бет (продолженная ставка). Ты рейзил префлоп — продолжай рассказывать историю.');
+                    if (isDry) tips.push('Сухой борд — маленький бет ⅓ пота достаточно.');
+                } else if (inPosition) {
+                    action = 'БЕТ'; confidence = 72;
+                    sizing = { potPercent: isDry ? 33 : 50 };
+                    tips.push('Хорошая пара в позиции — ставим для вэлью и защиты.');
+                } else if (isHeadsUp) {
+                    // Out of position heads-up — mix bet and check
+                    action = 'БЕТ'; confidence = 60;
+                    mixStrategy = { fold: 0, call: 40, raise: 60 };
+                    sizing = { potPercent: 40 };
+                    tips.push('Топ пара — ставим для вэлью, но иногда чек в ловушку.');
+                } else {
+                    // Multiway — be more careful
+                    action = 'ЧЕК'; confidence = 62;
+                    mixStrategy = { fold: 0, call: 55, raise: 45 };
+                    tips.push('Много игроков — с топ парой лучше контролировать банк. Чек, коллируем бет.');
+                }
+            }
+        }
+        // ============ WEAK-MEDIUM (strength 3): Top pair weak kicker, middle pair ============
+        else if (strength >= 3) {
+            if (facingBet) {
+                if (hasAllIn || has3Bet) {
+                    action = 'ФОЛД'; confidence = 80;
+                    tips.push('Средняя рука vs сильную агрессию — не стоит рисковать.');
+                } else if (potOdds > 0 && equity > potOdds) {
+                    action = 'КОЛЛ'; confidence = 60;
+                    tips.push(`Пот-оддсы позволяют коллировать: эквити ${equity.toFixed(0)}% > нужно ${potOdds.toFixed(0)}%.`);
+                } else if (hasDraws) {
+                    action = 'КОЛЛ'; confidence = 55;
+                    tips.push('Пара + дро — можно коллировать в надежде усилиться.');
+                } else {
+                    action = 'ФОЛД'; confidence = 62;
+                    mixStrategy = { fold: 60, call: 40, raise: 0 };
+                    tips.push('Слабая пара без дро vs бет — обычно фолд.');
+                }
+            } else {
+                // No bet facing
+                if (wasPreflopAggressor && isHeadsUp) {
+                    // C-bet bluff range — even with medium hand
+                    action = 'БЕТ'; confidence = 62;
+                    sizing = { potPercent: 33 };
+                    mixStrategy = { fold: 0, call: 40, raise: 60 };
+                    tips.push('Конт-бет с средней рукой. Ты рейзил — соперник часто сбросит.');
+                    if (isDry) tips.push('На сухом борде конт-бет работает особенно хорошо.');
+                } else if (inPosition && isHeadsUp) {
+                    action = 'БЕТ'; confidence = 58;
+                    sizing = { potPercent: 33 };
+                    tips.push('В позиции хедз-ап можно поставить маленький бет для вэлью/защиты.');
+                } else if (street === 'river') {
+                    // River with medium hand — check for showdown
+                    action = 'ЧЕК'; confidence = 70;
+                    tips.push('Ривер со средней рукой — чек и идём на вскрытие.');
+                } else {
+                    action = 'ЧЕК'; confidence = 65;
+                    tips.push('Средняя рука — контролируем банк. Если поставят — решаем по ситуации.');
+                }
+            }
+        }
+        // ============ DRAWS without made hand (strength < 3, but has draws) ============
+        else if (hasStrongDraw) {
+            if (facingBet) {
+                if (hasAllIn) {
+                    if (hasComboDraw) {
+                        action = 'КОЛЛ'; confidence = 60;
+                        tips.push(`Комбо-дро с ${outs} аутами vs олл-ин — у нас хороший шанс добрать.`);
+                    } else {
+                        action = 'ФОЛД'; confidence = 65;
+                        tips.push('Дро vs олл-ин — обычно не хватает оддсов.');
+                    }
+                } else if (hasComboDraw && street !== 'river') {
+                    // Semi-bluff raise with combo draw
+                    action = 'РЕЙЗ'; confidence = 65;
+                    mixStrategy = { fold: 10, call: 35, raise: 55 };
+                    sizing = { potPercent: 75 };
+                    tips.push(`Комбо-дро (${outs} аутов)! Полу-блеф рейзом — соперник может сбросить, а если нет — у нас куча шансов добрать.`);
+                } else if (potOdds > 0 && (equity > potOdds || (outs * (street === 'flop' ? 4 : 2.2)) > potOdds)) {
+                    action = 'КОЛЛ'; confidence = 65;
+                    tips.push(`${outs} аутов — математически выгодно коллировать. Каждый аут ≈ ${street === 'flop' ? '4' : '2'}% шанса.`);
+                } else {
+                    action = 'КОЛЛ'; confidence = 55;
+                    mixStrategy = { fold: 40, call: 55, raise: 5 };
+                    tips.push(`Дро с ${outs} аутами — пограничный колл. Иногда можно, иногда фолд.`);
+                }
+            } else {
+                // No bet — semi-bluff!
+                if (street === 'river') {
+                    // River — draws missed
+                    if (inPosition && isHeadsUp && outs === 0) {
+                        action = 'БЕТ'; confidence = 40;
+                        sizing = { potPercent: 50 };
+                        tips.push('Дро не добрал, но можно блефнуть — соперник тоже может иметь ничего.');
+                        mixStrategy = { fold: 0, call: 65, raise: 35 };
+                    } else {
+                        action = 'ЧЕК'; confidence = 75;
+                        tips.push('Ривер — дро не добрал. Чек.');
+                    }
+                } else {
+                    // Flop/Turn — semi-bluff bet
+                    action = 'БЕТ'; confidence = 70;
+                    if (hasComboDraw) {
+                        sizing = { potPercent: 67 };
+                        tips.push(`Полу-блеф! ${outs} аутов — ставим ⅔ пота. Если сбросят — забираем банк. Если коллируют — у нас куча шансов.`);
+                    } else if (hasNutDraw) {
+                        sizing = { potPercent: 55 };
+                        tips.push('Натсовое дро — ставим как полу-блеф. Выигрываем и когда сбрасывают, и когда добираем.');
+                    } else {
+                        sizing = { potPercent: 45 };
+                        tips.push(`Полу-блеф с ${outs} аутами. Давление + шанс добрать комбинацию.`);
+                    }
+                    if (wasPreflopAggressor) tips.push('Ты рейзил префлоп — полу-блеф выглядит естественно как конт-бет.');
+                }
+            }
+        }
+        // ============ WEAK DRAWS (4-7 outs) ============
+        else if (hasDraws && outs >= 4) {
+            if (facingBet) {
+                const drawOdds = outs * (street === 'flop' ? 4 : 2.2);
+                if (drawOdds > potOdds) {
+                    action = 'КОЛЛ'; confidence = 58;
+                    tips.push(`Слабое дро, но оддсы подходят: ${outs} аутов ≈ ${drawOdds.toFixed(0)}% > нужно ${potOdds.toFixed(0)}%.`);
                 } else {
                     action = 'ФОЛД'; confidence = 60;
-                    mixStrategy = { fold: 55, call: 45, raise: 0 };
-                    tips.push('Рука неплохая, но против такой агрессии рискованно. Чаще фолд.');
-                }
-            } else if (facingAggression >= 2) {
-                action = 'КОЛЛ'; confidence = 75;
-                mixStrategy = { fold: 10, call: 55, raise: 35 };
-                tips.push('Хорошая рука — коллируем ставку. Иногда можно и рейзить.');
-                if (wetness > 60) tips.push('Борд мокрый — есть смысл рейзить для защиты от дро.');
-            } else {
-                action = 'БЕТ'; confidence = 80;
-                if (wetness >= 50) {
-                    sizing = { potPercent: 67 };
-                    tips.push('Борд мокрый — ставь побольше (⅔ пота) чтобы не дать дешёвую карту.');
-                } else {
-                    sizing = { potPercent: 40 };
-                    tips.push('Борд сухой — маленький бет (⅓ пота) для вэлью. Мало что может измениться.');
-                }
-            }
-        } else if (strength >= 3) {
-            if (facingAggression >= 3) {
-                action = 'ФОЛД'; confidence = 80;
-                tips.push('Средняя рука vs сильная агрессия — не стоит рисковать. Фолд.');
-            } else if (facingAggression >= 2) {
-                if (potOdds > 0 && equity > potOdds) {
-                    action = 'КОЛЛ'; confidence = 65;
-                    tips.push(`У тебя шанс выиграть ${equity.toFixed(0)}%, а нужно ${potOdds.toFixed(0)}% — математически выгодно коллировать.`);
-                } else if (handEval.draws.length > 0) {
-                    action = 'КОЛЛ'; confidence = 55;
-                    tips.push('Есть дро — можешь коллировать в надежде добрать комбинацию.');
-                } else {
-                    action = 'ФОЛД'; confidence = 65;
-                    mixStrategy = { fold: 60, call: 40, raise: 0 };
-                    tips.push('Математически невыгодно коллировать. Лучше фолд.');
+                    tips.push(`Дро с ${outs} аутами, но оддсы не в нашу пользу. Фолд.`);
                 }
             } else {
-                if (['BTN', 'CO'].includes(position) && activePlayers <= 2) {
-                    action = 'БЕТ'; confidence = 65;
+                if (wasPreflopAggressor && isHeadsUp && street === 'flop') {
+                    // C-bet bluff with weak draw
+                    action = 'БЕТ'; confidence = 55;
                     sizing = { potPercent: 33 };
-                    tips.push('В позиции можно поставить маленький бет для вэлью/защиты.');
-                } else if (strength >= 4) {
-                    action = 'БЕТ'; confidence = 60;
-                    sizing = { potPercent: 40 };
-                    tips.push('Средняя рука — маленький бет для вэлью и защиты от оверкарт.');
+                    tips.push('Конт-бет блеф с дро — маленький бет, чтобы забрать или увидеть бесплатную карту.');
+                } else if (inPosition && isHeadsUp) {
+                    action = 'БЕТ'; confidence = 50;
+                    sizing = { potPercent: 33 };
+                    mixStrategy = { fold: 0, call: 50, raise: 50 };
+                    tips.push('В позиции можно поставить с дро — маленький бет как полу-блеф.');
                 } else {
-                    action = 'ЧЕК'; confidence = 70;
-                    tips.push('Средняя рука — лучше контролировать размер банка. Чек.');
+                    action = 'ЧЕК'; confidence = 65;
+                    tips.push('Слабое дро — бесплатная карта лучше. Чек.');
                 }
             }
-        } else if (handEval.draws.length > 0 && outs >= 6) {
-            if (facingAggression >= 2) {
-                if (equity > potOdds || (equity + 15) > potOdds) {
-                    action = 'КОЛЛ'; confidence = 65;
-                    tips.push(`У тебя ${outs} аутов (карт которые улучшат руку). Коллируем!`);
-                    tips.push('Аут = карта в колоде которая даст тебе выигрышную комбинацию.');
-                } else if (outs >= 12) {
-                    action = 'РЕЙЗ'; confidence = 55;
-                    mixStrategy = { fold: 20, call: 30, raise: 50 };
-                    tips.push('Комбо-дро (флеш + стрит) — можно полублефить рейзом!');
-                } else {
-                    action = 'ФОЛД'; confidence = 55;
-                    mixStrategy = { fold: 55, call: 45, raise: 0 };
-                    tips.push('Дро есть, но оддсы не в нашу пользу. Обычно фолд.');
-                }
-            } else {
-                if (outs >= 8) {
-                    action = 'БЕТ'; confidence = 65;
-                    sizing = { potPercent: 60 };
-                    tips.push(`Полублеф с ${outs} аутами — ставим, чтобы соперник сбросил, а если коллирует — у нас шанс добрать.`);
-                } else {
-                    action = 'ЧЕК'; confidence = 60;
-                    tips.push('Слабое дро — лучше бесплатная карта. Чек.');
-                }
-            }
-        } else {
-            if (facingAggression >= 2) {
+        }
+        // ============ AIR (nothing) ============
+        else {
+            if (facingBet) {
                 action = 'ФОЛД'; confidence = 90;
-                tips.push('Ничего нет на руках и нет дро. Фолд, не трать фишки.');
+                tips.push('Ничего нет — фолд. Не трать фишки зря.');
             } else {
-                if (['BTN', 'CO'].includes(position) && activePlayers <= 2 && wetness < 40) {
-                    action = 'БЕТ'; confidence = 45;
-                    sizing = { potPercent: 30 };
-                    tips.push('Можно блефнуть маленьким бетом — сухой борд, мало игроков, хорошая позиция.');
-                    tips.push('Блеф работает когда ты «рассказываешь историю» — будто у тебя сильная рука.');
+                // Can we bluff?
+                if (wasPreflopAggressor && isHeadsUp && street === 'flop' && !isWet) {
+                    // C-bet bluff on dry board heads-up
+                    action = 'БЕТ'; confidence = 55;
+                    sizing = { potPercent: 33 };
+                    mixStrategy = { fold: 0, call: 55, raise: 45 };
+                    tips.push('Конт-бет блеф на сухом борде! Ты рейзил — соперник часто сбросит.');
+                    tips.push('Блеф работает потому что ты рассказываешь историю: «Я рейзил, у меня сильная рука».');
+                } else if (inPosition && isHeadsUp && isDry) {
+                    action = 'БЕТ'; confidence = 42;
+                    sizing = { potPercent: 25 };
+                    mixStrategy = { fold: 0, call: 60, raise: 40 };
+                    tips.push('Маленький блеф в позиции на сухом борде — иногда заберёшь банк.');
                 } else {
                     action = 'ЧЕК'; confidence = 85;
-                    tips.push('Ничего нет — просто чек. Если кто-то поставит — фолд.');
+                    tips.push('Ничего нет — чек. Если поставят — фолд.');
                 }
+            }
+        }
+
+        // ============ STREET-SPECIFIC ADJUSTMENTS ============
+        if (street === 'turn' && action === 'БЕТ' && !facingBet) {
+            // Turn — decisions matter more, increase sizing slightly
+            if (sizing && strength >= 4) {
+                sizing.potPercent = Math.min(80, sizing.potPercent + 10);
+            }
+            if (strength < 3 && !hasStrongDraw && !wasPreflopAggressor) {
+                // Don't barrel turn without a hand or draw (unless c-betting)
+                action = 'ЧЕК'; confidence = 70;
+                tips.length = 0;
+                tips.push('Тёрн без руки и без дро — стоп на блефе. Чек.');
+            }
+        }
+
+        if (street === 'river') {
+            // River — no more cards to come, draws are dead
+            if (action === 'БЕТ' && strength < 3 && outs > 0 && !hasStrongDraw) {
+                // We had a draw that missed
+                if (inPosition && isHeadsUp) {
+                    // Can bluff river in position
+                    confidence = Math.min(confidence, 45);
+                    mixStrategy = { fold: 0, call: 65, raise: 35 };
+                    tips.length = 0;
+                    tips.push('Ривер-блеф — дро не зашёл, но можно поблефить в позиции.');
+                } else {
+                    action = 'ЧЕК'; confidence = 80;
+                    tips.length = 0;
+                    tips.push('Ривер — дро не добрал. Чек и сдаёмся если поставят.');
+                }
+            }
+        }
+
+        // ============ MULTIWAY ADJUSTMENTS ============
+        if (isMultiway) {
+            // Tighten up in multiway pots
+            if (action === 'БЕТ' && strength < 4 && !hasStrongDraw) {
+                action = 'ЧЕК';
+                confidence = 65;
+                tips.length = 0;
+                tips.push('Много игроков в банке — со средней рукой лучше чек. Кто-то может иметь сильнее.');
+            }
+            if (action === 'БЕТ' && confidence < 55) {
+                action = 'ЧЕК';
+                tips.length = 0;
+                tips.push('Не блефуй в мультипот (много игроков) — кто-то точно заколлирует.');
             }
         }
 
