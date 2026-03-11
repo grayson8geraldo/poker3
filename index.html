@@ -20,181 +20,185 @@
             </div>
         </header>
 
-        <!-- Street Progress -->
-        <div class="street-progress">
-            <div class="street-step active" data-street="preflop">
-                <div class="street-dot"></div>
-                <span>Префлоп</span>
-            </div>
-            <div class="street-line"></div>
-            <div class="street-step" data-street="flop">
-                <div class="street-dot"></div>
-                <span>Флоп</span>
-            </div>
-            <div class="street-line"></div>
-            <div class="street-step" data-street="turn">
-                <div class="street-dot"></div>
-                <span>Тёрн</span>
-            </div>
-            <div class="street-line"></div>
-            <div class="street-step" data-street="river">
-                <div class="street-dot"></div>
-                <span>Ривер</span>
-            </div>
-        </div>
-
-        <!-- Position Visual Table -->
-        <div class="table-section">
-            <div class="table-top-seats" id="topSeats"></div>
-            <div class="table-middle">
-                <div class="table-side-seats" id="leftSeats"></div>
-                <div class="table-felt">
-                    <div class="table-label">СТОЛ</div>
-                    <div class="table-info" id="tableInfo">Выбери позицию</div>
-                </div>
-                <div class="table-side-seats" id="rightSeats"></div>
-            </div>
-            <div class="table-bottom-seats" id="bottomSeats"></div>
-            <div class="position-hint" id="positionHint">
-                Нажми на позицию чтобы выбрать где ты сидишь
-            </div>
-        </div>
-
-        <!-- Main Area -->
-        <div class="main-area">
-            <!-- Cards Section -->
-            <div class="cards-section">
-                <div class="cards-group">
-                    <div class="cards-label">Твои карты</div>
-                    <div class="cards-row">
-                        <div class="card-slot" id="myCard1" data-slot="myCard1">
-                            <span class="card-placeholder">+</span>
-                        </div>
-                        <div class="card-slot" id="myCard2" data-slot="myCard2">
-                            <span class="card-placeholder">+</span>
-                        </div>
+        <!-- Two-column body -->
+        <div class="columns">
+            <!-- LEFT COLUMN: Input -->
+            <div class="col-left">
+                <!-- Street Progress -->
+                <div class="street-progress">
+                    <div class="street-step active" data-street="preflop">
+                        <div class="street-dot"></div>
+                        <span>Префлоп</span>
                     </div>
-                </div>
-                <!-- Keyboard input for cards -->
-                <div class="keyboard-input-group">
-                    <input type="text" id="cardInput" class="card-text-input" placeholder="Ввод: qh10d или asкч" autocomplete="off" autocapitalize="off" spellcheck="false">
-                    <div class="card-input-hint">Формат: <b>QhTd</b> = дама черв + 10 бубен. Масти: <b>h</b>=♥ <b>d</b>=♦ <b>c</b>=♣ <b>s</b>=♠</div>
-                </div>
-                <div class="cards-group">
-                    <div class="cards-label">Борд (карты на столе)</div>
-                    <div class="cards-row">
-                        <div class="card-slot board-slot" id="flop1" data-slot="flop1"><span class="card-placeholder">+</span></div>
-                        <div class="card-slot board-slot" id="flop2" data-slot="flop2"><span class="card-placeholder">+</span></div>
-                        <div class="card-slot board-slot" id="flop3" data-slot="flop3"><span class="card-placeholder">+</span></div>
-                        <div class="card-slot board-slot turn-slot" id="turn" data-slot="turn"><span class="card-placeholder">+</span></div>
-                        <div class="card-slot board-slot river-slot" id="river" data-slot="river"><span class="card-placeholder">+</span></div>
+                    <div class="street-line"></div>
+                    <div class="street-step" data-street="flop">
+                        <div class="street-dot"></div>
+                        <span>Флоп</span>
                     </div>
-                    <div class="board-labels">
-                        <span class="bl-flop">← Флоп →</span>
-                        <span class="bl-turn">Тёрн</span>
-                        <span class="bl-river">Ривер</span>
+                    <div class="street-line"></div>
+                    <div class="street-step" data-street="turn">
+                        <div class="street-dot"></div>
+                        <span>Тёрн</span>
                     </div>
-                </div>
-            </div>
-
-            <!-- Game Controls -->
-            <div class="game-controls">
-                <!-- Tournament Info -->
-                <div class="tourney-bar" id="tourneyBar">
-                    <div class="mzone-display" id="mzoneDisplay">
-                        <div class="mzone-label">M-зона</div>
-                        <div class="mzone-value" id="mzoneValue">—</div>
-                    </div>
-                    <div class="phase-display" id="phaseDisplay">
-                        <div class="phase-label">Фаза</div>
-                        <div class="phase-value" id="phaseValue">—</div>
-                    </div>
-                    <div class="stack-display">
-                        <div class="stack-label">BB в стеке</div>
-                        <div class="stack-value" id="stackBB">—</div>
+                    <div class="street-line"></div>
+                    <div class="street-step" data-street="river">
+                        <div class="street-dot"></div>
+                        <span>Ривер</span>
                     </div>
                 </div>
 
-                <div class="control-row">
-                    <div class="control-group">
-                        <label class="control-label">Мой стек</label>
-                        <div class="blind-input">
-                            <input type="number" id="stackSize" value="10000" min="0" step="100">
+                <!-- Cards + Table side by side -->
+                <div class="top-row">
+                    <!-- Cards Section -->
+                    <div class="cards-section">
+                        <div class="cards-group">
+                            <div class="cards-label">Твои карты</div>
+                            <div class="cards-row">
+                                <div class="card-slot" id="myCard1" data-slot="myCard1">
+                                    <span class="card-placeholder">+</span>
+                                </div>
+                                <div class="card-slot" id="myCard2" data-slot="myCard2">
+                                    <span class="card-placeholder">+</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="cards-group">
+                            <div class="cards-label">Борд</div>
+                            <div class="cards-row">
+                                <div class="card-slot board-slot" id="flop1" data-slot="flop1"><span class="card-placeholder">+</span></div>
+                                <div class="card-slot board-slot" id="flop2" data-slot="flop2"><span class="card-placeholder">+</span></div>
+                                <div class="card-slot board-slot" id="flop3" data-slot="flop3"><span class="card-placeholder">+</span></div>
+                                <div class="card-slot board-slot turn-slot" id="turn" data-slot="turn"><span class="card-placeholder">+</span></div>
+                                <div class="card-slot board-slot river-slot" id="river" data-slot="river"><span class="card-placeholder">+</span></div>
+                            </div>
+                            <div class="board-labels">
+                                <span class="bl-flop">← Флоп →</span>
+                                <span class="bl-turn">Тёрн</span>
+                                <span class="bl-river">Ривер</span>
+                            </div>
+                        </div>
+                        <!-- Keyboard input -->
+                        <div class="keyboard-input-group">
+                            <input type="text" id="cardInput" class="card-text-input" placeholder="Ввод: QhTd или AsКч" autocomplete="off" autocapitalize="off" spellcheck="false">
+                            <div class="card-input-hint">Масти: <b>h</b>=♥ <b>d</b>=♦ <b>c</b>=♣ <b>s</b>=♠</div>
                         </div>
                     </div>
-                    <div class="control-group">
-                        <label class="control-label">Блайнд (ББ)</label>
-                        <div class="blind-input">
-                            <input type="number" id="blindSize" value="100" min="1" step="10">
+
+                    <!-- Position Table -->
+                    <div class="table-section">
+                        <div class="table-top-seats" id="topSeats"></div>
+                        <div class="table-middle">
+                            <div class="table-side-seats" id="leftSeats"></div>
+                            <div class="table-felt">
+                                <div class="table-label">СТОЛ</div>
+                                <div class="table-info" id="tableInfo">Выбери позицию</div>
+                            </div>
+                            <div class="table-side-seats" id="rightSeats"></div>
                         </div>
-                    </div>
-                </div>
-                <div class="control-row">
-                    <div class="control-group">
-                        <label class="control-label">Анте</label>
-                        <div class="blind-input">
-                            <input type="number" id="anteSize" value="0" min="0" step="5">
-                        </div>
-                    </div>
-                    <div class="control-group">
-                        <label class="control-label">Игроков за столом</label>
-                        <div class="player-selector">
-                            <button class="btn btn-minus" id="playerMinus">−</button>
-                            <span class="player-count" id="playerCount">8</span>
-                            <button class="btn btn-plus" id="playerPlus">+</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="control-row">
-                    <div class="control-group">
-                        <label class="control-label">Осталось игроков</label>
-                        <div class="blind-input">
-                            <input type="number" id="playersRemaining" value="50" min="2" step="1">
-                        </div>
-                    </div>
-                    <div class="control-group">
-                        <label class="control-label">Призовых мест</label>
-                        <div class="blind-input">
-                            <input type="number" id="paidPlaces" value="8" min="1" step="1">
+                        <div class="table-bottom-seats" id="bottomSeats"></div>
+                        <div class="position-hint" id="positionHint">
+                            Нажми на позицию
                         </div>
                     </div>
                 </div>
 
-                <!-- Situation Picker (one tap) -->
-                <div class="situation-section">
-                    <div class="situation-label">Что было до тебя?</div>
-                    <div class="situation-buttons" id="situationButtons">
-                        <button class="btn btn-situation active" data-situation="none">Никто не зашёл</button>
-                        <button class="btn btn-situation" data-situation="limp">Лимп</button>
-                        <button class="btn btn-situation" data-situation="raise">Рейз</button>
-                        <button class="btn btn-situation" data-situation="3bet">3-Бет</button>
-                        <button class="btn btn-situation" data-situation="allin">Олл-ин</button>
+                <!-- Game Controls (compact grid) -->
+                <div class="game-controls">
+                    <!-- Tournament Info -->
+                    <div class="tourney-bar" id="tourneyBar">
+                        <div class="mzone-display" id="mzoneDisplay">
+                            <div class="mzone-label">M-зона</div>
+                            <div class="mzone-value" id="mzoneValue">—</div>
+                        </div>
+                        <div class="phase-display" id="phaseDisplay">
+                            <div class="phase-label">Фаза</div>
+                            <div class="phase-value" id="phaseValue">—</div>
+                        </div>
+                        <div class="stack-display">
+                            <div class="stack-label">BB в стеке</div>
+                            <div class="stack-value" id="stackBB">—</div>
+                        </div>
+                    </div>
+
+                    <div class="controls-grid">
+                        <div class="control-group">
+                            <label class="control-label">Стек</label>
+                            <div class="blind-input">
+                                <input type="number" id="stackSize" value="10000" min="0" step="100">
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label class="control-label">Блайнд</label>
+                            <div class="blind-input">
+                                <input type="number" id="blindSize" value="100" min="1" step="10">
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label class="control-label">Анте</label>
+                            <div class="blind-input">
+                                <input type="number" id="anteSize" value="0" min="0" step="5">
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label class="control-label">Игроков</label>
+                            <div class="player-selector">
+                                <button class="btn btn-minus" id="playerMinus">−</button>
+                                <span class="player-count" id="playerCount">8</span>
+                                <button class="btn btn-plus" id="playerPlus">+</button>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label class="control-label">Осталось</label>
+                            <div class="blind-input">
+                                <input type="number" id="playersRemaining" value="50" min="2" step="1">
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label class="control-label">Призовых</label>
+                            <div class="blind-input">
+                                <input type="number" id="paidPlaces" value="8" min="1" step="1">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Situation + Pot in one row -->
+                    <div class="situation-pot-row">
+                        <div class="situation-section">
+                            <div class="situation-label">Что было до тебя?</div>
+                            <div class="situation-buttons" id="situationButtons">
+                                <button class="btn btn-situation active" data-situation="none">Никто не зашёл</button>
+                                <button class="btn btn-situation" data-situation="limp">Лимп</button>
+                                <button class="btn btn-situation" data-situation="raise">Рейз</button>
+                                <button class="btn btn-situation" data-situation="3bet">3-Бет</button>
+                                <button class="btn btn-situation" data-situation="allin">Олл-ин</button>
+                            </div>
+                        </div>
+                        <div class="pot-display">
+                            <div class="pot-icon">💰</div>
+                            <div class="pot-info">
+                                <span class="pot-label">Банк</span>
+                                <span class="pot-value" id="potValue">0</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Pot Display -->
-                <div class="pot-display">
-                    <div class="pot-icon">💰</div>
-                    <div class="pot-info">
-                        <span class="pot-label">Банк (примерно)</span>
-                        <span class="pot-value" id="potValue">0</span>
-                    </div>
-                </div>
+                <!-- Advice Button -->
+                <button class="btn btn-advice" id="getAdvice">
+                    <span class="advice-icon">🎯</span>
+                    <span>ЧТО ДЕЛАТЬ?</span>
+                </button>
             </div>
 
-            <!-- Big Advice Button -->
-            <button class="btn btn-advice" id="getAdvice">
-                <span class="advice-icon">🎯</span>
-                <span>ЧТО ДЕЛАТЬ?</span>
-            </button>
-        </div>
-
-        <!-- Advice Panel -->
-        <div class="advice-panel" id="advicePanel">
-            <div class="advice-empty">
-                <div class="advice-empty-icon">🃏</div>
-                <div>Выбери свои карты — совет появится автоматически</div>
-                <div class="advice-empty-tip">Подсказка: правый клик по карте — убрать её</div>
+            <!-- RIGHT COLUMN: Advice -->
+            <div class="col-right">
+                <div class="advice-panel" id="advicePanel">
+                    <div class="advice-empty">
+                        <div class="advice-empty-icon">🃏</div>
+                        <div>Выбери свои карты — совет появится автоматически</div>
+                        <div class="advice-empty-tip">Подсказка: правый клик по карте — убрать её</div>
+                    </div>
+                </div>
             </div>
         </div>
 
