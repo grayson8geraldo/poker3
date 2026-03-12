@@ -189,9 +189,19 @@
                             <button class="btn btn-opp-action active" data-opp="first" id="oppFirst">Ты первый</button>
                             <button class="btn btn-opp-action" data-opp="check" id="oppCheck">Чек до тебя</button>
                             <button class="btn btn-opp-action" data-opp="bet" id="oppBet">Оппонент поставил</button>
-                            <div class="opp-bet-input" id="oppBetInput" style="display:none">
-                                <input type="number" id="oppBetSize" placeholder="Сколько?" min="0" step="50">
+                        </div>
+                        <div class="opp-bet-block" id="oppBetBlock" style="display:none">
+                            <div class="opp-bet-input-row">
+                                <input type="number" id="oppBetSize" placeholder="Сумма в фишках" min="0" step="50">
+                                <span class="opp-bet-unit">фишек</span>
                             </div>
+                            <div class="opp-bet-quick" id="oppBetQuick">
+                                <button class="btn btn-bet-quick" data-pct="33">⅓ пота</button>
+                                <button class="btn btn-bet-quick" data-pct="50">½ пота</button>
+                                <button class="btn btn-bet-quick" data-pct="67">⅔ пота</button>
+                                <button class="btn btn-bet-quick" data-pct="100">Пот</button>
+                            </div>
+                            <div class="opp-bet-warning" id="oppBetWarning" style="display:none">⚠ Введи сумму ставки для точного совета</div>
                         </div>
                     </div>
                 </div>

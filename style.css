@@ -726,12 +726,20 @@ body {
     color: var(--orange);
 }
 
-.opp-bet-input {
-    flex: 1;
+.opp-bet-block {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--bg4);
 }
 
-.opp-bet-input input {
-    width: 100%;
+.opp-bet-input-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.opp-bet-input-row input {
+    flex: 1;
     padding: 6px 8px;
     border: 2px solid var(--orange);
     border-radius: 6px;
@@ -741,18 +749,58 @@ body {
     font-weight: 700;
     text-align: center;
     font-family: inherit;
+    max-width: 160px;
 }
 
-.opp-bet-input input:focus {
+.opp-bet-input-row input:focus {
     outline: none;
     border-color: var(--accent);
     background: var(--bg);
 }
 
-.opp-bet-input input::placeholder {
+.opp-bet-input-row input::placeholder {
     color: var(--text3);
     font-weight: 400;
     font-size: 12px;
+}
+
+.opp-bet-unit {
+    font-size: 11px;
+    color: var(--text3);
+    font-weight: 600;
+}
+
+.opp-bet-quick {
+    display: flex;
+    gap: 4px;
+    margin-top: 5px;
+}
+
+.btn-bet-quick {
+    padding: 4px 8px;
+    font-size: 10px;
+    font-weight: 700;
+    border: 1px solid var(--bg4);
+    border-radius: 4px;
+    background: var(--bg3);
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.btn-bet-quick:hover {
+    border-color: var(--orange);
+    color: var(--orange);
+    background: rgba(230, 126, 34, 0.1);
+}
+
+.btn-bet-quick:active { transform: scale(0.95); }
+
+.opp-bet-warning {
+    font-size: 10px;
+    color: var(--orange);
+    margin-top: 4px;
+    font-weight: 600;
 }
 
 /* ===== ADVICE BUTTON ===== */

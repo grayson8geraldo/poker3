@@ -339,11 +339,14 @@
         document.getElementById('oppFirst').classList.toggle('active', action === 'first');
         document.getElementById('oppCheck').classList.toggle('active', action === 'check');
         document.getElementById('oppBet').classList.toggle('active', action === 'bet');
-        document.getElementById('oppBetInput').style.display = action === 'bet' ? 'block' : 'none';
+        document.getElementById('oppBetBlock').style.display = action === 'bet' ? 'block' : 'none';
         if (action === 'bet') {
             state.opponentBet = parseInt(document.getElementById('oppBetSize').value) || 0;
+            updateBetWarning();
+            updateQuickBetButtons();
         } else {
             state.opponentBet = 0;
+            document.getElementById('oppBetWarning').style.display = 'none';
         }
         updatePot();
         autoAnalyze();
@@ -351,8 +354,38 @@
 
     function updateOpponentBet() {
         state.opponentBet = parseInt(document.getElementById('oppBetSize').value) || 0;
+        updateBetWarning();
         updatePot();
         autoAnalyze();
+    }
+
+    function updateBetWarning() {
+        const warning = document.getElementById('oppBetWarning');
+        if (state.opponentAction === 'bet' && state.opponentBet <= 0) {
+            warning.style.display = 'block';
+        } else {
+            warning.style.display = 'none';
+        }
+    }
+
+    function updateQuickBetButtons() {
+        // Calculate current pot to show quick bet options
+        const actions = situationToActions();
+        const est = GTO.estimatePot(actions, state.blindSize, state.playerCount, state.anteSize);
+        const pot = est.pot;
+        document.querySelectorAll('.btn-bet-quick').forEach(btn => {
+            const pct = parseInt(btn.dataset.pct);
+            const amount = Math.round(pot * pct / 100);
+            btn.title = amount + ' фишек';
+        });
+    }
+
+    function handleQuickBet(pct) {
+        const actions = situationToActions();
+        const est = GTO.estimatePot(actions, state.blindSize, state.playerCount, state.anteSize);
+        const amount = Math.round(est.pot * pct / 100);
+        document.getElementById('oppBetSize').value = amount;
+        updateOpponentBet();
     }
 
     function updatePostflopUI() {
@@ -374,7 +407,8 @@
         document.getElementById('oppFirst').classList.add('active');
         document.getElementById('oppCheck').classList.remove('active');
         document.getElementById('oppBet').classList.remove('active');
-        document.getElementById('oppBetInput').style.display = 'none';
+        document.getElementById('oppBetBlock').style.display = 'none';
+        document.getElementById('oppBetWarning').style.display = 'none';
         const betInput = document.getElementById('oppBetSize');
         if (betInput) betInput.value = '';
     }
@@ -922,6 +956,13 @@
         const oppBetSize = document.getElementById('oppBetSize');
         oppBetSize.addEventListener('input', updateOpponentBet);
         oppBetSize.addEventListener('change', updateOpponentBet);
+
+        // Quick bet size buttons
+        document.querySelectorAll('.btn-bet-quick').forEach(btn => {
+            btn.addEventListener('click', () => {
+                handleQuickBet(parseInt(btn.dataset.pct));
+            });
+        });
 
         // New hand
         document.getElementById('newHandBtn').addEventListener('click', newHand);
