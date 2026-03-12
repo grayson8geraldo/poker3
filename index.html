@@ -184,12 +184,13 @@
 
                     <!-- Postflop: Opponent action (hidden on preflop) -->
                     <div class="opponent-action-section" id="opponentActionSection" style="display:none">
-                        <div class="opponent-action-label" id="opponentActionLabel">Оппонент на флопе:</div>
+                        <div class="opponent-action-label" id="opponentActionLabel">Твоя ситуация на флопе:</div>
                         <div class="opponent-action-row">
-                            <button class="btn btn-opp-action active" data-opp="check" id="oppCheck">Чек до тебя</button>
-                            <button class="btn btn-opp-action" data-opp="bet" id="oppBet">Поставил</button>
+                            <button class="btn btn-opp-action active" data-opp="first" id="oppFirst">Ты первый</button>
+                            <button class="btn btn-opp-action" data-opp="check" id="oppCheck">Чек до тебя</button>
+                            <button class="btn btn-opp-action" data-opp="bet" id="oppBet">Оппонент поставил</button>
                             <div class="opp-bet-input" id="oppBetInput" style="display:none">
-                                <input type="number" id="oppBetSize" placeholder="Размер" min="0" step="50">
+                                <input type="number" id="oppBetSize" placeholder="Сколько?" min="0" step="50">
                             </div>
                         </div>
                     </div>

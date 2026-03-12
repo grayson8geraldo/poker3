@@ -12,7 +12,7 @@
         position: 'BTN',
         playerCount: 8,
         situation: 'none',  // none | limp | raise | 3bet | allin
-        opponentAction: 'check', // check | bet
+        opponentAction: 'first', // first | check | bet
         opponentBet: 0,
         handNumber: 1,
         blindSize: 100,
@@ -336,13 +336,14 @@
     // ---- OPPONENT POSTFLOP ACTION ----
     function setOpponentAction(action) {
         state.opponentAction = action;
+        document.getElementById('oppFirst').classList.toggle('active', action === 'first');
         document.getElementById('oppCheck').classList.toggle('active', action === 'check');
         document.getElementById('oppBet').classList.toggle('active', action === 'bet');
         document.getElementById('oppBetInput').style.display = action === 'bet' ? 'block' : 'none';
-        if (action === 'check') {
-            state.opponentBet = 0;
-        } else {
+        if (action === 'bet') {
             state.opponentBet = parseInt(document.getElementById('oppBetSize').value) || 0;
+        } else {
+            state.opponentBet = 0;
         }
         updatePot();
         autoAnalyze();
@@ -363,14 +364,15 @@
             section.style.display = 'block';
             const streetNames = { flop: 'флопе', turn: 'тёрне', river: 'ривере' };
             document.getElementById('opponentActionLabel').textContent =
-                `Оппонент на ${streetNames[street] || street}:`;
+                `Ситуация на ${streetNames[street] || street}:`;
         }
     }
 
     function resetOpponentAction() {
-        state.opponentAction = 'check';
+        state.opponentAction = 'first';
         state.opponentBet = 0;
-        document.getElementById('oppCheck').classList.add('active');
+        document.getElementById('oppFirst').classList.add('active');
+        document.getElementById('oppCheck').classList.remove('active');
         document.getElementById('oppBet').classList.remove('active');
         document.getElementById('oppBetInput').style.display = 'none';
         const betInput = document.getElementById('oppBetSize');
@@ -398,7 +400,7 @@
         state.myCards = [null, null];
         state.boardCards = [null, null, null, null, null];
         state.situation = 'none';
-        state.opponentAction = 'check';
+        state.opponentAction = 'first';
         state.opponentBet = 0;
         state.usedCards.clear();
         state.handNumber++;
@@ -914,6 +916,7 @@
         });
 
         // Opponent postflop action
+        document.getElementById('oppFirst').addEventListener('click', () => setOpponentAction('first'));
         document.getElementById('oppCheck').addEventListener('click', () => setOpponentAction('check'));
         document.getElementById('oppBet').addEventListener('click', () => setOpponentAction('bet'));
         const oppBetSize = document.getElementById('oppBetSize');

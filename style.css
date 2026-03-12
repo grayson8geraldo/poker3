@@ -708,6 +708,12 @@ body {
 
 .btn-opp-action:active { transform: scale(0.95); }
 
+.btn-opp-action.active[data-opp="first"] {
+    border-color: var(--blue);
+    background: rgba(52, 152, 219, 0.15);
+    color: var(--blue);
+}
+
 .btn-opp-action.active[data-opp="check"] {
     border-color: var(--green);
     background: rgba(46, 204, 113, 0.15);
