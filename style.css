@@ -669,6 +669,86 @@ body {
     color: var(--yellow);
 }
 
+/* ===== OPPONENT ACTION (postflop) ===== */
+.opponent-action-section {
+    background: var(--bg);
+    border-radius: 6px;
+    padding: 8px 10px;
+    border: 1px solid var(--accent);
+    border-left: 3px solid var(--accent);
+}
+
+.opponent-action-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 5px;
+}
+
+.opponent-action-row {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.btn-opp-action {
+    padding: 7px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 2px solid var(--bg4);
+    border-radius: 6px;
+    background: var(--bg3);
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.btn-opp-action:active { transform: scale(0.95); }
+
+.btn-opp-action.active[data-opp="check"] {
+    border-color: var(--green);
+    background: rgba(46, 204, 113, 0.15);
+    color: var(--green);
+}
+
+.btn-opp-action.active[data-opp="bet"] {
+    border-color: var(--orange);
+    background: rgba(230, 126, 34, 0.15);
+    color: var(--orange);
+}
+
+.opp-bet-input {
+    flex: 1;
+}
+
+.opp-bet-input input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 2px solid var(--orange);
+    border-radius: 6px;
+    background: var(--bg3);
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 700;
+    text-align: center;
+    font-family: inherit;
+}
+
+.opp-bet-input input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--bg);
+}
+
+.opp-bet-input input::placeholder {
+    color: var(--text3);
+    font-weight: 400;
+    font-size: 12px;
+}
+
 /* ===== ADVICE BUTTON ===== */
 .btn-advice {
     width: 100%;
@@ -939,22 +1019,62 @@ body {
     flex-wrap: wrap;
 }
 
-.sizing-chip {
-    padding: 4px 10px;
-    border-radius: 16px;
-    font-size: 12px;
-    font-weight: 700;
-}
-
-.sizing-chip.recommended {
+/* Sizing Hero (big number) */
+.sizing-hero {
     background: var(--accent);
-    color: #fff;
-    box-shadow: 0 2px 6px rgba(233, 69, 96, 0.3);
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+    margin-bottom: 6px;
 }
 
-.sizing-chip:not(.recommended) {
+.sizing-amount {
+    font-size: 28px;
+    font-weight: 900;
+    color: #fff;
+}
+
+.sizing-desc {
+    font-size: 11px;
+    color: rgba(255,255,255,0.8);
+    margin-top: 2px;
+}
+
+/* Sizing chips row */
+.sizing-chips-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+}
+
+.sizing-chip-item {
     background: var(--bg);
-    color: var(--text2);
+    border-radius: 6px;
+    padding: 6px 4px;
+    text-align: center;
+    border: 2px solid transparent;
+    transition: all 0.15s;
+}
+
+.sizing-chip-item.recommended {
+    border-color: var(--accent);
+    background: rgba(233, 69, 96, 0.1);
+}
+
+.sci-amount {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text);
+}
+
+.sizing-chip-item.recommended .sci-amount {
+    color: var(--accent);
+}
+
+.sci-label {
+    font-size: 9px;
+    color: var(--text3);
+    font-weight: 600;
 }
 
 .sizing-reason {

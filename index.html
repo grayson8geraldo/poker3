@@ -161,10 +161,10 @@
                         </div>
                     </div>
 
-                    <!-- Situation + Pot in one row -->
+                    <!-- Preflop: Situation picker -->
                     <div class="situation-pot-row">
-                        <div class="situation-section">
-                            <div class="situation-label">Что было до тебя?</div>
+                        <div class="situation-section" id="preflopSituation">
+                            <div class="situation-label">Префлоп: что было до тебя?</div>
                             <div class="situation-buttons" id="situationButtons">
                                 <button class="btn btn-situation active" data-situation="none">Никто не зашёл</button>
                                 <button class="btn btn-situation" data-situation="limp">Лимп</button>
@@ -178,6 +178,18 @@
                             <div class="pot-info">
                                 <span class="pot-label">Банк</span>
                                 <span class="pot-value" id="potValue">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Postflop: Opponent action (hidden on preflop) -->
+                    <div class="opponent-action-section" id="opponentActionSection" style="display:none">
+                        <div class="opponent-action-label" id="opponentActionLabel">Оппонент на флопе:</div>
+                        <div class="opponent-action-row">
+                            <button class="btn btn-opp-action active" data-opp="check" id="oppCheck">Чек до тебя</button>
+                            <button class="btn btn-opp-action" data-opp="bet" id="oppBet">Поставил</button>
+                            <div class="opp-bet-input" id="oppBetInput" style="display:none">
+                                <input type="number" id="oppBetSize" placeholder="Размер" min="0" step="50">
                             </div>
                         </div>
                     </div>

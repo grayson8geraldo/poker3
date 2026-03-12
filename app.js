@@ -12,6 +12,8 @@
         position: 'BTN',
         playerCount: 8,
         situation: 'none',  // none | limp | raise | 3bet | allin
+        opponentAction: 'check', // check | bet
+        opponentBet: 0,
         handNumber: 1,
         blindSize: 100,
         stackSize: 10000,
@@ -126,6 +128,9 @@
             if (i === currentIdx) el.classList.add('active');
             else if (i < currentIdx) el.classList.add('completed');
         });
+
+        // Show/hide postflop opponent action
+        updatePostflopUI();
     }
 
     // ---- TOURNAMENT INFO ----
@@ -221,6 +226,8 @@
         const slot = state.activeSlot;
         if (!slot) return;
 
+        const prevStreet = getCurrentStreet();
+
         const [arr, idx] = getSlotIndex(slot);
         const oldCard = state[arr][idx];
         if (oldCard) state.usedCards.delete(oldCard);
@@ -230,6 +237,13 @@
 
         renderCardSlots();
         updateStreetProgress();
+
+        // Reset opponent action when entering a new street
+        const newStreet = getCurrentStreet();
+        if (newStreet !== prevStreet) {
+            resetOpponentAction();
+        }
+
         updatePot();
         closeCardPicker();
         autoOpenNext(slot);
@@ -319,12 +333,58 @@
         autoAnalyze();
     }
 
+    // ---- OPPONENT POSTFLOP ACTION ----
+    function setOpponentAction(action) {
+        state.opponentAction = action;
+        document.getElementById('oppCheck').classList.toggle('active', action === 'check');
+        document.getElementById('oppBet').classList.toggle('active', action === 'bet');
+        document.getElementById('oppBetInput').style.display = action === 'bet' ? 'block' : 'none';
+        if (action === 'check') {
+            state.opponentBet = 0;
+        } else {
+            state.opponentBet = parseInt(document.getElementById('oppBetSize').value) || 0;
+        }
+        updatePot();
+        autoAnalyze();
+    }
+
+    function updateOpponentBet() {
+        state.opponentBet = parseInt(document.getElementById('oppBetSize').value) || 0;
+        updatePot();
+        autoAnalyze();
+    }
+
+    function updatePostflopUI() {
+        const street = getCurrentStreet();
+        const section = document.getElementById('opponentActionSection');
+        if (street === 'preflop') {
+            section.style.display = 'none';
+        } else {
+            section.style.display = 'block';
+            const streetNames = { flop: 'флопе', turn: 'тёрне', river: 'ривере' };
+            document.getElementById('opponentActionLabel').textContent =
+                `Оппонент на ${streetNames[street] || street}:`;
+        }
+    }
+
+    function resetOpponentAction() {
+        state.opponentAction = 'check';
+        state.opponentBet = 0;
+        document.getElementById('oppCheck').classList.add('active');
+        document.getElementById('oppBet').classList.remove('active');
+        document.getElementById('oppBetInput').style.display = 'none';
+        const betInput = document.getElementById('oppBetSize');
+        if (betInput) betInput.value = '';
+    }
+
     // ---- POT CALCULATION ----
     function updatePot() {
         readTourneyInputs();
         const actions = situationToActions();
         const est = GTO.estimatePot(actions, state.blindSize, state.playerCount, state.anteSize);
-        document.getElementById('potValue').textContent = est.pot;
+        // Add opponent bet to pot on postflop
+        const totalPot = est.pot + state.opponentBet;
+        document.getElementById('potValue').textContent = totalPot;
         updateTourneyDisplay();
     }
 
@@ -338,6 +398,8 @@
         state.myCards = [null, null];
         state.boardCards = [null, null, null, null, null];
         state.situation = 'none';
+        state.opponentAction = 'check';
+        state.opponentBet = 0;
         state.usedCards.clear();
         state.handNumber++;
 
@@ -346,6 +408,7 @@
         document.querySelectorAll('.btn-situation').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.situation === 'none');
         });
+        resetOpponentAction();
         renderTable();
         renderCardSlots();
         updateStreetProgress();
@@ -472,9 +535,13 @@
             const handEval = GTO.evaluateHandOnBoard(state.myCards[0], state.myCards[1], activeBoardCards);
             const playersLeft = Math.max(2, state.playerCount);
 
+            // Use actual opponent bet (0 = checked to us)
+            const actualPot = potEst.pot + state.opponentBet;
+            const betToCall = state.opponentBet;
+
             const decision = GTO.postflopDecision(
                 handEval, boardAnalysis, actions,
-                state.position, potEst.pot, potEst.currentBet, playersLeft, street,
+                state.position, actualPot, betToCall, playersLeft, street,
                 wasPreflopAggressor()
             );
 
@@ -537,27 +604,63 @@
                 html += renderMixStrategy(decision.mixStrategy);
             }
 
-            // Sizing
+            // Sizing — show exact chip amounts
             if (decision.action === 'БЕТ' || decision.action === 'РЕЙЗ') {
-                const sizes = GTO.getSizingRecommendation(boardAnalysis, decision.strengthLevel, street, potEst.pot);
-                // Show exact sizing from engine if available
-                const exactSizing = decision.sizing && potEst.pot > 0
-                    ? Math.round(potEst.pot * decision.sizing.potPercent / 100)
-                    : null;
-                if (sizes.length > 0 || exactSizing) {
-                    html += `<div class="advice-card">
-                        <div class="advice-card-title">💰 Сколько ставить</div>`;
-                    if (exactSizing) {
-                        html += `<div class="advice-row"><span class="label">Рекомендуемый размер</span><span class="value" style="font-weight:700;color:var(--accent)">${exactSizing} (${decision.sizing.potPercent}% пота)</span></div>`;
-                    }
-                    if (sizes.length > 0) {
-                        html += `<div class="sizing-options">
-                            ${sizes.map(s => `<span class="sizing-chip ${s.recommended ? 'recommended' : ''}">${s.label}</span>`).join('')}
-                        </div>
-                        ${sizes.filter(s => s.recommended).map(s => `<div class="sizing-reason">${s.reason}</div>`).join('')}`;
-                    }
+                html += `<div class="advice-card sizing-card">
+                    <div class="advice-card-title">💰 Сколько ставить</div>`;
+
+                if (decision.sizing && actualPot > 0) {
+                    const recSize = Math.round(actualPot * decision.sizing.potPercent / 100);
+                    html += `<div class="sizing-hero">
+                        <div class="sizing-amount">${recSize}</div>
+                        <div class="sizing-desc">${decision.sizing.potPercent}% от банка (${actualPot})</div>
+                    </div>`;
+                }
+
+                // Quick sizing options in chips
+                if (actualPot > 0) {
+                    const opts = [
+                        { pct: 25, label: '¼ пота' },
+                        { pct: 33, label: '⅓ пота' },
+                        { pct: 50, label: '½ пота' },
+                        { pct: 67, label: '⅔ пота' },
+                        { pct: 75, label: '¾ пота' },
+                        { pct: 100, label: 'Пот' }
+                    ];
+                    const recPct = decision.sizing ? decision.sizing.potPercent : 50;
+                    html += `<div class="sizing-chips-row">`;
+                    opts.forEach(o => {
+                        const amount = Math.round(actualPot * o.pct / 100);
+                        const isRec = Math.abs(o.pct - recPct) <= 10;
+                        html += `<div class="sizing-chip-item ${isRec ? 'recommended' : ''}">
+                            <div class="sci-amount">${amount}</div>
+                            <div class="sci-label">${o.label}</div>
+                        </div>`;
+                    });
                     html += `</div>`;
                 }
+
+                if (decision.action === 'РЕЙЗ' && betToCall > 0) {
+                    const minRaise = betToCall * 2;
+                    const potRaise = actualPot + betToCall * 2;
+                    html += `<div style="margin-top:6px;font-size:11px;color:var(--text2)">
+                        Мин. рейз: <b>${minRaise}</b> · Пот-сайз рейз: <b>${potRaise}</b>
+                    </div>`;
+                }
+
+                html += `</div>`;
+            }
+
+            // If CALL — show how much to call and pot odds
+            if (decision.action === 'КОЛЛ' && betToCall > 0) {
+                const potOdds = (betToCall / (actualPot + betToCall) * 100).toFixed(0);
+                html += `<div class="advice-card">
+                    <div class="advice-card-title">📞 Сколько коллировать</div>
+                    <div class="sizing-hero" style="background:var(--blue)">
+                        <div class="sizing-amount">${betToCall}</div>
+                        <div class="sizing-desc">Колл · Пот-оддсы: ${potOdds}%</div>
+                    </div>
+                </div>`;
             }
 
             html += '</div>';
@@ -649,12 +752,8 @@
     function autoAnalyze() {
         const hasHoleCards = state.myCards[0] && state.myCards[1];
         if (!hasHoleCards) return;
-
-        const boardCount = state.boardCards.filter(c => c !== null).length;
-        // Auto-analyze on: 2 hole cards, 3 flop cards, 4 (turn), 5 (river)
-        if (boardCount === 0 || boardCount === 3 || boardCount === 4 || boardCount === 5) {
-            setTimeout(() => runAnalysis(), 100);
-        }
+        // Always re-analyze — cards changed, opponent action changed, situation changed
+        setTimeout(() => runAnalysis(), 100);
     }
 
     // ---- KEYBOARD CARD INPUT ----
@@ -813,6 +912,13 @@
         document.querySelectorAll('.btn-situation').forEach(btn => {
             btn.addEventListener('click', () => setSituation(btn.dataset.situation));
         });
+
+        // Opponent postflop action
+        document.getElementById('oppCheck').addEventListener('click', () => setOpponentAction('check'));
+        document.getElementById('oppBet').addEventListener('click', () => setOpponentAction('bet'));
+        const oppBetSize = document.getElementById('oppBetSize');
+        oppBetSize.addEventListener('input', updateOpponentBet);
+        oppBetSize.addEventListener('change', updateOpponentBet);
 
         // New hand
         document.getElementById('newHandBtn').addEventListener('click', newHand);
