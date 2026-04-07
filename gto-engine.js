@@ -176,10 +176,21 @@ const GTO = (() => {
         let tips = [];
 
         if (hasAllIn) {
-            threshold = 90;
+            // Adjust threshold based on pusher position (tight EP push = need stronger call)
+            // We approximate: more raises before allin = earlier/tighter pusher
+            const tightPush = playersInHand - foldCount >= 4; // many players still = early pusher
+            threshold = tightPush ? 92 : 88;
+
+            // ATo/AJo are TRAPS vs tight EP push — they're dominated by AK/AQ/AJ
+            const isWeakAceOffsuit = !hand.suited && !hand.pair && hand.high === 14 && hand.low <= 11;
+
             if (score >= 95) {
                 action = 'КОЛЛ'; confidence = 95;
                 tips.push('У тебя суперсильная рука — коллируй олл-ин!');
+            } else if (isWeakAceOffsuit && tightPush) {
+                action = 'ФОЛД'; confidence = 80;
+                tips.push('⚠ Слабый туз разномастный (ATo/AJo) против пуша из ранней позиции — это ловушка.');
+                tips.push('Против диапазона пуша AK/AQ/AJ/TT+ ты доминирован. Эквити ниже 30%. Фолд.');
             } else if (score >= threshold) {
                 action = 'КОЛЛ'; confidence = 70;
                 mixStrategy = { fold: 30, call: 70, raise: 0 };
@@ -190,7 +201,7 @@ const GTO = (() => {
                 tips.push('Против олл-ина нужна очень сильная рука. Лучше сбросить.');
             } else {
                 action = 'ФОЛД'; confidence = 95;
-                tips.push('Фолд. Против олл-ина играй только с лучшими картами (AA, KK, QQ, AK).');
+                tips.push('Фолд. Против олл-ина играй только с лучшими картами (99+, AQs+, AK).');
             }
         } else if (has4Bet) {
             threshold = adjustRangeForPlayers(range.fourbet, playersLeft);
@@ -225,6 +236,16 @@ const GTO = (() => {
         } else if (hasRaise) {
             const callingThreshold = adjustRangeForPlayers(range.call3bet - 10, playersLeft);
             const reraisingThreshold = adjustRangeForPlayers(range.call3bet, playersLeft);
+
+            // 3-bet bluff with blockers: Axo (A2o-A5o), Kxo (K9o-KTo), Qxo with blockers
+            // These hands block AK/AQ/KK/QQ and are easy to fold to a 4-bet
+            const isBlockerBluff = !hand.suited && !hand.pair && (
+                (hand.high === 14 && hand.low >= 2 && hand.low <= 5) ||  // A2o-A5o
+                (hand.high === 13 && hand.low >= 9 && hand.low <= 10) || // K9o-KTo
+                (hand.high === 12 && hand.low === 10)                    // QTo
+            );
+            const lateForBluff = ['CO', 'BTN', 'SB'].includes(position);
+
             if (score >= reraisingThreshold) {
                 action = '3-БЕТ'; confidence = 85;
                 mixStrategy = { fold: 0, call: 25, raise: 75 };
@@ -233,6 +254,13 @@ const GTO = (() => {
                 action = 'КОЛЛ'; confidence = 70;
                 mixStrategy = { fold: 15, call: 65, raise: 20 };
                 tips.push('Хорошая рука для колла чужого рейза.');
+            } else if (isBlockerBluff && lateForBluff && playersLeft <= 3) {
+                // 3-bet bluff with blockers from late position
+                action = '3-БЕТ'; confidence = 60;
+                mixStrategy = { fold: 30, call: 0, raise: 70 };
+                tips.push('3-БЕТ В БЛЕФ с блокерами! Твоя рука блокирует AA/AK/KK у соперника.');
+                tips.push('Если соперник 4-бетит — спокойно фолдай. Если коллирует — у тебя ещё есть эквити (туз/король).');
+                tips.push('⚠ Работает против тайтовых соперников (Fold to 3Bet > 50%).');
             } else if (score >= callingThreshold - 10 && hand.suited && (hand.connected || hand.oneGap)) {
                 action = '3-БЕТ'; confidence = 50;
                 mixStrategy = { fold: 50, call: 10, raise: 40 };
@@ -258,6 +286,11 @@ const GTO = (() => {
         } else {
             // RFI
             const openThreshold = adjustRangeForPlayers(range.open, playersLeft);
+            // Steal range: from BTN/CO/SB we can open wider — including small suited connectors
+            const isStealPosition = ['CO', 'BTN', 'SB'].includes(position);
+            const isSuitedSmall = hand.suited && hand.high <= 8;  // 73s, 63s, 85s etc.
+            const isLowConnector = hand.suited && (hand.connected || hand.oneGap);
+
             if (score >= openThreshold) {
                 action = 'РЕЙЗ'; confidence = 85;
                 if (score >= openThreshold + 10) confidence = 92;
@@ -267,6 +300,17 @@ const GTO = (() => {
                 } else if (posInfo.quality <= 1) {
                     tips.push('Ранняя позиция — играем только сильные руки.');
                 }
+            } else if (position === 'BTN' && playersLeft <= 3 && (isLowConnector || isSuitedSmall || (hand.high >= 7))) {
+                // Wide BTN steal — almost any playable hand works vs passive blinds
+                action = 'РЕЙЗ'; confidence = 55;
+                mixStrategy = { fold: 35, call: 0, raise: 65 };
+                tips.push('Стил с баттона! Против пассивных блайндов можно открывать очень широко.');
+                tips.push('Реализуешь эквити в позиции или заберёшь конт-бетом на флопе.');
+            } else if (position === 'CO' && playersLeft <= 4 && isSuitedSmall && (hand.connected || hand.oneGap)) {
+                // CO steal with small suited connectors
+                action = 'РЕЙЗ'; confidence = 50;
+                mixStrategy = { fold: 45, call: 0, raise: 55 };
+                tips.push('Стил с CO одномастной связкой — есть потенциал и фолд-эквити.');
             } else if (score >= openThreshold - 5 && hand.suited && (hand.connected || hand.oneGap)) {
                 action = 'РЕЙЗ'; confidence = 50;
                 mixStrategy = { fold: 45, call: 0, raise: 55 };
@@ -387,6 +431,7 @@ const GTO = (() => {
 
         analysis.wetness = wetness;
         analysis.tags = tags;
+        analysis.ranks = ranks;
         analysis.highestCard = highest;
         analysis.lowestCard = Math.min(...ranks);
         analysis.straightDraws = straightDraws;
@@ -963,12 +1008,30 @@ const GTO = (() => {
         }
 
         // ============ STREET-SPECIFIC ADJUSTMENTS ============
+
+        // ACE ON TURN BARREL — if we were preflop aggressor from EP and an Ace comes on turn,
+        // it's a great barrel card because Ace fits OUR range better than caller's range
+        const boardRanks = (boardAnalysis.ranks || []).map(r => typeof r === 'number' ? r : 0);
+        const turnCardIsAce = street === 'turn' && boardRanks.length >= 4 && boardRanks[3] === 14;
+        const flopHadAce = boardRanks.slice(0, 3).includes(14);
+        if (turnCardIsAce && !flopHadAce && wasPreflopAggressor && earlyPos && isHeadsUp && !facingBet) {
+            if (strength < 4 && action !== 'БЕТ') {
+                action = 'БЕТ'; confidence = 65;
+                sizing = { potPercent: 67 };
+                mixStrategy = { fold: 0, call: 35, raise: 65 };
+                tips.length = 0;
+                tips.push('🎯 ТУЗ НА ТЁРНЕ — идеальная карта для баррела!');
+                tips.push('Ты рейзил из ранней позиции — туз попадает в твой диапазон, но не в диапазон коллера BB.');
+                tips.push('Сильные тузы у соперника обычно ушли бы в 3-бет префлоп. Дави.');
+            }
+        }
+
         if (street === 'turn' && action === 'БЕТ' && !facingBet) {
             // Turn — decisions matter more, increase sizing slightly
             if (sizing && strength >= 4) {
                 sizing.potPercent = Math.min(80, sizing.potPercent + 10);
             }
-            if (strength < 3 && !hasStrongDraw && !wasPreflopAggressor) {
+            if (strength < 3 && !hasStrongDraw && !wasPreflopAggressor && !turnCardIsAce) {
                 // Don't barrel turn without a hand or draw (unless c-betting)
                 action = 'ЧЕК'; confidence = 70;
                 tips.length = 0;
@@ -977,6 +1040,22 @@ const GTO = (() => {
         }
 
         if (street === 'river') {
+            // RIVER OVERBET BLUFF — missed draw on blank river, in position, headsup
+            // Can bet big to fold out weak pairs and Ace-high
+            const riverCardRank = boardRanks[4];
+            const isBlankRiver = riverCardRank && riverCardRank <= 9 && !boardAnalysis.fourFlush && !boardAnalysis.fourStraight;
+            const hadStrongDrawOnTurn = handEval.draws.length === 0 && strength < 3; // draws are now busted
+
+            if (!facingBet && hadStrongDrawOnTurn && isBlankRiver && inPosition && isHeadsUp && wasPreflopAggressor) {
+                action = 'БЕТ'; confidence = 50;
+                sizing = { potPercent: 90 };
+                mixStrategy = { fold: 0, call: 30, raise: 70 };
+                tips.length = 0;
+                tips.push('🎯 РИВЕР-ОВЕРБЕТ БЛЕФ! Дро не зашло, но ривер бланковый.');
+                tips.push('Большая ставка (~пот) выбивает слабые пары (тройки, десятки) и туз-хай оппонента.');
+                tips.push('Это продвинутый приём — работает только против думающих оппонентов.');
+            }
+
             // River — no more cards to come, draws are dead
             if (action === 'БЕТ' && strength < 3 && outs > 0 && !hasStrongDraw) {
                 // We had a draw that missed
@@ -1265,11 +1344,28 @@ const GTO = (() => {
             const tips = [];
             let action, confidence;
 
-            if (pushFold.shouldPush) {
+            // ICM bubble pressure: widen pushes against small stacks behind
+            const onBubble = phase === 'bubble';
+            const widerOnBubble = onBubble && score >= pushFold.threshold - 12;
+
+            // Mid-pair push (66-88) at ~15bb is +EV from middle/late positions
+            const midPairPushable = hand.pair && hand.high >= 6 && hand.high <= 8 && m >= 10 && m <= 16
+                && ['MP', 'MP+1', 'HJ', 'CO', 'BTN'].includes(position);
+
+            if (pushFold.shouldPush || widerOnBubble || midPairPushable) {
                 action = 'ОЛЛ-ИН';
                 confidence = m <= 5 ? 90 : 75;
                 tips.push(`M = ${m.toFixed(1)} — ты в режиме push/fold.`);
-                tips.push('Твоя рука достаточно сильна для олл-ина с этой позиции.');
+                if (midPairPushable && !pushFold.shouldPush) {
+                    confidence = 70;
+                    tips.push('💡 Пара 66-88 при ~15ББ — пуш максимизирует фолд-эквити.');
+                    tips.push('Лучше пуш чем рейз-фолд: не даём оппонентам перехватить инициативу 3-бетом.');
+                } else {
+                    tips.push('Твоя рука достаточно сильна для олл-ина с этой позиции.');
+                }
+                if (widerOnBubble && !pushFold.shouldPush) {
+                    tips.push('🫧 ICM-давление! На пузыре оппоненты боятся вылететь — пушим шире.');
+                }
                 if (m <= 3) tips.push('У тебя мало фишек — нужно рисковать СЕЙЧАС пока есть фолд-эквити.');
             } else {
                 action = 'ФОЛД';
